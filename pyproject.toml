@@ -27,6 +27,42 @@ minversion = "8.0"
 addopts = "-ra -q --cov-report=term-missing --cov=src"
 python_files = ["*_tests.py"]
 
+[tool.ruff]
+exclude = [
+    ".git",
+    ".idea",
+    ".mypy_cache",
+    ".tox",
+    ".venv"
+]
+target-version = "py312"
+line-length = 100
+indent-width = 4
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "INP001", # require __init__,py
+    "D401", # first line should be in imperative mood
+    "A002", # re-define Python builtin
+    "D203", # 1 blank line required before class docstring
+    "D213", # 1 blank line required before function docstring
+    "COM812", # Checks for the absence of trailing commas
+]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = false
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint.isort]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
 [tool.poe.tasks.lint]
 help = "Run the linter."
 cmd = "ruff check ."
