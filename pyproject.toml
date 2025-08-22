@@ -1,0 +1,36 @@
+[project]
+name = "temporal-python-template"
+version = "0.1.0"
+description = "AI-enabled Temporal Python SDK project template"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "temporalio==1.16.0",
+]
+
+[dependency-groups]
+dev = [
+    "poethepoet==0.37.0",
+    "pytest==8.4.1",
+    "pytest-asyncio==1.1.0",
+    "pytest-cov==6.2.1",
+    "ruff==0.12.10",
+]
+
+[tool.poe.tasks.test]
+help = "Run the tests."
+cmd = "pytest src"
+env = { PYTHONPATH = "." }
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --cov-report=term-missing --cov=src"
+python_files = ["*_tests.py"]
+
+[tool.poe.tasks.lint]
+help = "Run the linter."
+cmd = "ruff check ."
+
+[tool.poe.tasks.format]
+help = "Run the formatter."
+cmd = "ruff format ."
