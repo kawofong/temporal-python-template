@@ -21,7 +21,7 @@ dev = [
 
 [tool.poe.tasks.test]
 help = "Run the tests."
-cmd = "pytest ."
+cmd = "pytest"
 env = { PYTHONPATH = "." }
 
 [tool.pytest.ini_options]
