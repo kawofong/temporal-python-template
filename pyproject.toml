@@ -16,6 +16,7 @@ dev = [
     "pytest==8.4.1",
     "pytest-asyncio==1.1.0",
     "pytest-cov==6.2.1",
+    "pytest-timeout==2.4.0",
     "ruff==0.12.10",
 ]
 
@@ -28,6 +29,9 @@ env = { PYTHONPATH = "." }
 minversion = "8.0"
 addopts = "-ra -q --cov-report=term-missing --cov=src"
 python_files = ["*_tests.py"]
+# pytest-timeout configurations; https://pypi.org/project/pytest-timeout/
+timeout = 5  # 5 seconds timeout per test
+timeout_method = "thread"
 
 [tool.ruff]
 exclude = [
