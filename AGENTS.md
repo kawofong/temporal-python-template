@@ -1,0 +1,195 @@
+# Temporal Python SDK Project Template
+
+## Project Overview
+
+This is a **Temporal Python SDK project template** designed for building reliable, distributed applications. The project demonstrates an AI-enabled approach to workflow development with comprehensive testing and modern Python tooling.
+
+## Tech Stack
+
+- **Temporal**: Workflow orchestration engine for building resilient distributed systems
+- **Python 3.12+**: Modern Python with async/await support
+- **uv**: Package management and virtual environment management
+- **Pydantic**: Data validation and serialization
+- **pytest**: Testing framework with async support
+
+## Project Structure
+
+```text
+temporal-python-cookiecutter/
+├── docs/
+│   ├── testing.md                    # Testing standards and guidelines
+│   └── write-new-workflow.md         # Guide for adding new workflows
+├── src/
+│   ├── conftest.py                   # Test configuration and fixtures
+│   └── workflows/
+│       └── http/                        # HTTP workflow example
+│           ├── http_activities.py       # Activity definitions
+│           ├── http_activities_tests.py # Activity unit tests
+│           ├── http_workflow.py         # Workflow definitions (orchestration)
+│           ├── http_workflow_tests.py   # Workflow integration tests
+│           └── worker.py                # Worker process for running workflows
+├── AGENTS.md                         # AI assistant instructions (this file)
+├── LICENSE                           # Project license
+├── pyproject.toml                    # Project configuration and dependencies
+├── README.md                         # Project documentation
+└── uv.lock                           # Dependency lock file
+```
+
+## Key Concepts for AI Assistants
+
+### Temporal Architecture Patterns
+
+1. **Workflows** (e.g., `src/workflows/http/http_workflow.py`):
+   - Orchestration logic that coordinates activities
+   - Must be deterministic and replay-safe
+   - Use `@workflow.defn` decorator
+   - Handle timeouts, retries, and failure scenarios
+
+2. **Activities** (e.g., `src/workflows/http/http_activities.py`):
+   - Side effects like HTTP calls, database operations, file I/O
+   - Non-deterministic operations
+   - Use `@activity.defn` decorator
+   - Can be retried independently
+
+3. **Workers** (e.g., `src/workflows/http/worker.py`):
+   - Processes that execute workflows and activities
+   - Connect to Temporal server
+   - Register workflows and activities
+   - Note: Not all workflow packages may have a worker file
+
+### Data Models
+
+The project uses **Pydantic models** for type safety and validation.
+
+### Testing
+
+For information on testing standards, see [testing.md](./docs/testing.md).
+
+## Development Guidelines
+
+### Code Quality Standards
+
+- **Ruff**: Comprehensive linting and formatting (configured in `pyproject.toml`)
+- **Type Hints**: Full type annotation coverage
+- **Docstrings**: Comprehensive documentation for all public APIs
+- **Test Coverage**: Aim for high test coverage with `pytest-cov`
+
+### Project Commands
+
+```bash
+# Install dependencies
+uv sync
+
+# Run tests
+uv run poe test
+
+# Lint code
+uv run poe lint
+
+# Format code
+uv run poe format
+
+# Run worker (for workflows that have a worker module)
+uv run -m src.workflows.http.worker
+
+# Execute workflow (if workflow has main execution)
+uv run -m src.workflows.http.http_workflow
+```
+
+## AI Assistant Instructions
+
+### When Working with This Project
+
+1. **Understand Temporal Patterns**:
+   - Workflows orchestrate, activities execute side effects
+   - Workflows must be deterministic (no random numbers, system calls, etc.)
+   - Use `workflow.unsafe.imports_passed_through()` for non-deterministic imports
+   - Activities handle all external interactions
+
+2. **Follow Existing Patterns**:
+   - Use Pydantic models for all inputs/outputs
+   - Implement comprehensive error handling
+   - Add proper logging with `workflow.logger` and `activity.logger`
+   - Include timeout configurations
+
+3. **Testing Approach**:
+   - Create unit tests for activities with mocked dependencies
+   - Write integration tests using the test environment
+   - Use the existing fixtures in `conftest.py`
+   - Test both success and failure scenarios
+
+4. **Code Organization**:
+   - Keep workflows and activities in separate files
+   - Group related functionality in subdirectories
+   - Follow the existing naming conventions
+   - Maintain clear separation of concerns
+
+### Common Tasks
+
+#### Adding a New Workflow
+
+For instructions on adding a new Workflow to this project, see [write-new-workflow.md](./docs/write-new-workflow.md).
+
+#### Adding External Dependencies
+
+1. Update `dependencies` in `pyproject.toml`
+2. Run `uv sync` to update lock file
+3. Import within `workflow.unsafe.imports_passed_through()` if used in workflows
+4. Add to activities if side effects are needed
+
+### Security Considerations
+
+- Validate all external inputs with Pydantic
+- Use environment variables for sensitive configuration
+- Implement proper authentication for external services
+- Follow principle of least privilege for worker permissions
+
+## Example Usage Patterns
+
+### Creating a New Activity
+
+```python
+@activity.defn
+async def my_activity(input: MyActivityInput) -> MyActivityOutput:
+    """Activity description."""
+    activity.logger.info("Processing %s", input.data)
+    # Perform side effect
+    return MyActivityOutput(result=processed_data)
+```
+
+### Creating a New Workflow
+
+```python
+@workflow.defn
+class MyWorkflow:
+    """Workflow description."""
+
+    @workflow.run
+    async def run(self, input: MyWorkflowInput) -> MyWorkflowOutput:
+        """Run the workflow."""
+        result = await workflow.execute_activity(
+            my_activity,
+            input,
+            start_to_close_timeout=timedelta(seconds=30),
+        )
+        return MyWorkflowOutput(data=result.data)
+```
+
+## Troubleshooting
+
+### Common Issues
+
+- **Import Errors**: Ensure proper use of `workflow.unsafe.imports_passed_through()`
+- **Determinism Violations**: Move non-deterministic code to activities
+- **Timeout Errors**: Adjust timeout values or implement proper retry logic
+- **Test Failures**: Check for async/await patterns and proper fixture usage
+
+### Getting Help
+
+- Temporal Documentation: https://docs.temporal.io/
+- Python SDK Guide: https://docs.temporal.io/dev-guide/python
+- Community Forum: https://community.temporal.io/
+
+---
+
+This project serves as a template for building production-ready Temporal applications with modern Python practices. Follow the established patterns and testing strategies for consistent, maintainable code.
