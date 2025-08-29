@@ -7,8 +7,8 @@ from temporalio.client import Client
 from temporalio.contrib.pydantic import pydantic_data_converter
 from temporalio.worker import Worker
 
-from src.workflows.http.activities import http_get
 from src.workflows.http.http_workflow import HttpWorkflow
+from workflows.http.http_activities import http_get
 
 
 async def main() -> None:

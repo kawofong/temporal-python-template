@@ -8,7 +8,7 @@ from temporalio import workflow
 with workflow.unsafe.imports_passed_through():
     from pydantic import BaseModel
 
-    from src.workflows.http.activities import HttpGetActivityOutput, http_get
+    from workflows.http.http_activities import HttpGetActivityOutput, http_get
 
 
 class HttpWorkflowInput(BaseModel):
