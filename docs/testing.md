@@ -47,14 +47,14 @@ python_files = ["*_tests.py"]
 
 ```
 src/
-├── conftest.py                    # Global test configuration
+├── conftest.py                            # Global test configuration
 └── workflows/
     └── example/
-        ├── activities.py          # Activity implementations
-        ├── activities_tests.py    # Activity unit tests
-        ├── workflow.py            # Workflow implementations
-        ├── workflow_tests.py      # Workflow component tests
-        └── worker.py              # Worker configuration
+        ├── example_activities.py          # Activity implementations
+        ├── example_activities_tests.py    # Activity unit tests
+        ├── example_workflow.py            # Workflow implementations
+        ├── example_workflow_tests.py      # Workflow component tests
+        └── worker.py                      # Worker configuration
 ```
 
 ## Activity Testing Standards
@@ -68,7 +68,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from temporalio.testing import ActivityEnvironment
 
-from src.workflows.example.activities import MyActivity, MyActivityInput
+from src.workflows.example.example_activities import MyActivity, MyActivityInput
 
 
 class TestMyActivity:
@@ -490,13 +490,13 @@ async def test_activity_memory_limit(self) -> None:
 uv run poe test
 
 # Run specific test file
-uv run poe test src/workflows/http/activities_tests.py
+uv run poe test src/workflows/http/http_activities_tests.py
 
 # Run specific test class
-uv run poe test src/workflows/http/activities_tests.py::TestHttpGetActivity
+uv run poe test src/workflows/http/http_activities_tests.py::TestHttpGetActivity
 
 # Run specific test method
-uv run poe test src/workflows/http/activities_tests.py::TestHttpGetActivity::test_http_get_success
+uv run poe test src/workflows/http/http_activities_tests.py::TestHttpGetActivity::test_http_get_success
 ```
 
 **Important**: never use `uv run pytest` directly because `PYTHONPATH` will not be configured properly.
