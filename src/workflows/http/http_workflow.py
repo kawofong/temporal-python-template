@@ -51,7 +51,7 @@ class HttpWorkflow:
         )
 
 
-async def main() -> None:
+async def main() -> None:  # pragma: no cover
     """Connects to the client, starts a worker, and executes the workflow."""
     from temporalio.client import Client  # noqa: PLC0415
     from temporalio.contrib.pydantic import pydantic_data_converter  # noqa: PLC0415
@@ -69,5 +69,5 @@ async def main() -> None:
     print(f"\nSuccessful Workflow Result: {success_result}\n")  # noqa: T201
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     asyncio.run(main())
