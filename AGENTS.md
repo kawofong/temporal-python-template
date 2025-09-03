@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a **Temporal Python SDK project template** designed for building reliable, distributed applications. The project demonstrates an AI-enabled approach to workflow development with comprehensive testing and modern Python tooling.
+This is a **Temporal Python SDK project template** (`temporal-python-template`) designed for building reliable, distributed applications. The project demonstrates an AI-enabled approach to workflow development with comprehensive testing and modern Python tooling.
 
 ## Tech Stack
 
@@ -17,6 +17,8 @@ This is a **Temporal Python SDK project template** designed for building reliabl
 ```text
 temporal-python-cookiecutter/
 ├── docs/
+│   ├── temporal-patterns.md          # Advanced Temporal patterns and examples
+│   ├── temporal-primitives.md        # Core Temporal primitives documentation
 │   ├── testing.md                    # Testing standards and guidelines
 │   └── write-new-workflow.md         # Guide for adding new workflows
 ├── src/
@@ -63,7 +65,14 @@ The project uses **Pydantic models** for type safety and validation.
 
 ### Testing
 
-For information on testing standards, see [testing.md](./docs/testing.md).
+For comprehensive testing standards and guidelines, see [testing.md](./docs/testing.md).
+
+### Documentation
+
+Additional documentation is available:
+
+- [temporal-patterns.md](./docs/temporal-patterns.md): Advanced Temporal patterns and implementation examples
+- [temporal-primitives.md](./docs/temporal-primitives.md): Core Temporal primitives and their usage
 
 ## Development Guidelines
 
@@ -80,7 +89,7 @@ For information on testing standards, see [testing.md](./docs/testing.md).
 # Install dependencies
 uv sync
 
-# Run tests
+# Run tests with coverage
 uv run poe test
 
 # Lint code
@@ -92,7 +101,7 @@ uv run poe format
 # Run worker (for workflows that have a worker module)
 uv run -m src.workflows.http.worker
 
-# Execute workflow (if workflow has main execution)
+# Execute workflow directly (if workflow has main execution)
 uv run -m src.workflows.http.http_workflow
 ```
 
@@ -186,9 +195,10 @@ class MyWorkflow:
 
 ### Getting Help
 
-- Temporal Documentation: https://docs.temporal.io/
-- Python SDK Guide: https://docs.temporal.io/dev-guide/python
-- Community Forum: https://community.temporal.io/
+- [Temporal Documentation](https://docs.temporal.io/)
+- [Python SDK Guide](https://docs.temporal.io/dev-guide/python)
+- [Community Forum](https://community.temporal.io/)
+- Project Documentation: See `docs/` directory for detailed guides
 
 ---
 
