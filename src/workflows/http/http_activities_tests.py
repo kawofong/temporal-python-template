@@ -6,7 +6,7 @@ import aiohttp
 import pytest
 from temporalio.testing import ActivityEnvironment
 
-from workflows.http.http_activities import HttpGetActivityInput, http_get
+from src.workflows.http.http_activities import HttpGetActivityInput, http_get
 
 
 class TestHttpGetActivity:
