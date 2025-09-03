@@ -15,7 +15,7 @@ This is a **Temporal Python SDK project template** (`temporal-python-template`) 
 ## Project Structure
 
 ```text
-temporal-python-cookiecutter/
+temporal-python-template/
 ├── docs/
 │   ├── temporal-patterns.md          # Advanced Temporal patterns and examples
 │   ├── temporal-primitives.md        # Core Temporal primitives documentation
@@ -59,6 +59,8 @@ temporal-python-cookiecutter/
    - Register workflows and activities
    - Note: Not all workflow packages may have a worker file
 
+See [temporal-primitive.md](./docs/temporal-primitives.md) and [temporal-patterns.md](./docs/temporal-patterns.md) for more details.
+
 ### Data Models
 
 The project uses **Pydantic models** for type safety and validation.
@@ -81,22 +83,34 @@ Additional documentation is available:
 - **Ruff**: Comprehensive linting and formatting (configured in `pyproject.toml`)
 - **Type Hints**: Full type annotation coverage
 - **Docstrings**: Comprehensive documentation for all public APIs
-- **Test Coverage**: Aim for high test coverage with `pytest-cov`
+- **Test Coverage**: Minimum 80% coverage enforced with `pytest-cov`
+- **Pre-commit**: Automated code quality checks on commit
+- **Pytest Configuration**: 5-second timeout per test, async support enabled
 
 ### Project Commands
 
 ```bash
 # Install dependencies
-uv sync
+uv sync --dev
 
 # Run tests with coverage
 uv run poe test
+# Never use `uv run pytest` directly because `PYTHONPATH` will not be configured properly.
 
 # Lint code
 uv run poe lint
 
 # Format code
 uv run poe format
+
+# Install pre-commit hooks
+uv run poe pre-commit-install
+
+# Run pre-commit on all files
+uv run poe pre-commit-run
+
+# Update pre-commit hooks
+uv run poe pre-commit-update
 
 # Run worker (for workflows that have a worker module)
 uv run -m src.workflows.http.worker
@@ -126,6 +140,9 @@ uv run -m src.workflows.http.http_workflow
    - Write integration tests using the test environment
    - Use the existing fixtures in `conftest.py`
    - Test both success and failure scenarios
+   - Test files must end with `_tests.py` (configured in `pyproject.toml`)
+   - Use `pytest-asyncio` for async test support
+   - 5-second timeout per test to catch infinite loops
 
 4. **Code Organization**:
    - Keep workflows and activities in separate files
@@ -142,7 +159,7 @@ For instructions on adding a new Workflow to this project, see [write-new-workfl
 #### Adding External Dependencies
 
 1. Update `dependencies` in `pyproject.toml`
-2. Run `uv sync` to update lock file
+2. Run `uv sync --dev` to update lock file
 3. Import within `workflow.unsafe.imports_passed_through()` if used in workflows
 4. Add to activities if side effects are needed
 
@@ -158,11 +175,23 @@ For instructions on adding a new Workflow to this project, see [write-new-workfl
 ### Creating a New Activity
 
 ```python
+from pydantic import BaseModel
+from temporalio import activity
+
+class MyActivityInput(BaseModel):
+    """Input model for the activity."""
+    data: str
+
+class MyActivityOutput(BaseModel):
+    """Output model for the activity."""
+    result: str
+
 @activity.defn
 async def my_activity(input: MyActivityInput) -> MyActivityOutput:
     """Activity description."""
     activity.logger.info("Processing %s", input.data)
     # Perform side effect
+    processed_data = f"Processed: {input.data}"
     return MyActivityOutput(result=processed_data)
 ```
 
