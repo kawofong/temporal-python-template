@@ -1,7 +1,8 @@
 # Temporal Python SDK Project Template
 
+![GitHub CI](https://github.com/kawofong/temporal-python-template/actions/workflows/ci.yml/badge.svg)
+[![Code Coverage](https://img.shields.io/codecov/c/github/kawofong/temporal-python-template.svg?maxAge=86400)](https://codecov.io/github/kawofong/temporal-python-template?branch=master)
 [![GitHub License](https://img.shields.io/github/license/kawofong/temporal-python-template)](https://github.com/kawofong/temporal-python-template/blob/main/LICENSE)
-[![Code Coverage](https://img.shields.io/badge/codecov-report-blue)](https://app.codecov.io/gh/kawofong/temporal-python-template)
 
 ## Introduction
 
