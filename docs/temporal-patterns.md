@@ -840,10 +840,239 @@ async def get_job_status(job_id: str):
 
 ## Schedule
 
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/schedules/start_schedule.py
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/schedules/trigger_schedule.py
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/schedules/backfill_schedule.py
+The Schedule pattern enables automatic execution of workflows at specified intervals or times using Temporal's built-in scheduling system. Schedules provide cron-like functionality with additional features like manual triggering, backfilling, and overlap policies.
+
+**Key Implementation:**
+
+- Use `client.create_schedule()` to define recurring workflow executions
+- Configure `ScheduleSpec` with intervals, cron expressions, or calendars
+- Support manual triggering with `handle.trigger()` for on-demand execution
+- Enable backfilling with `handle.backfill()` to run missed executions
+- Control execution overlap with `ScheduleOverlapPolicy` settings
+
+```python
+import asyncio
+from datetime import datetime, timedelta
+from temporalio.client import (
+    Client,
+    Schedule,
+    ScheduleActionStartWorkflow,
+    ScheduleBackfill,
+    ScheduleIntervalSpec,
+    ScheduleOverlapPolicy,
+    ScheduleSpec,
+    ScheduleState,
+)
+from temporalio import workflow
+
+@workflow.defn
+class ScheduledWorkflow:
+    @workflow.run
+    async def run(self, data: str) -> str:
+        workflow.logger.info(f"Scheduled execution with data: {data}")
+        return f"Processed: {data}"
+
+async def create_interval_schedule():
+    """Create a schedule that runs every 2 minutes."""
+    client = await Client.connect("localhost:7233")
+
+    await client.create_schedule(
+        "interval-schedule-id",
+        Schedule(
+            action=ScheduleActionStartWorkflow(
+                ScheduledWorkflow.run,
+                "scheduled data",  # Workflow arguments
+                id="scheduled-workflow-id",
+                task_queue="scheduled-task-queue",
+            ),
+            spec=ScheduleSpec(
+                intervals=[ScheduleIntervalSpec(every=timedelta(minutes=2))]
+            ),
+            state=ScheduleState(
+                note="Runs every 2 minutes",
+                paused=False,  # Schedule is active
+            ),
+        ),
+    )
+
+async def create_cron_schedule():
+    """Create a schedule using cron expression."""
+    client = await Client.connect("localhost:7233")
+
+    await client.create_schedule(
+        "cron-schedule-id",
+        Schedule(
+            action=ScheduleActionStartWorkflow(
+                ScheduledWorkflow.run,
+                "daily report",
+                id="daily-report-workflow",
+                task_queue="reports-task-queue",
+            ),
+            spec=ScheduleSpec(
+                cron_expressions=["0 9 * * MON-FRI"]  # 9 AM weekdays
+            ),
+            state=ScheduleState(note="Daily report generation"),
+        ),
+    )
+
+async def trigger_schedule_manually():
+    """Manually trigger a scheduled workflow execution."""
+    client = await Client.connect("localhost:7233")
+    handle = client.get_schedule_handle("interval-schedule-id")
+
+    # Trigger immediate execution
+    await handle.trigger()
+    print("Schedule triggered manually")
+
+async def backfill_schedule():
+    """Backfill missed schedule executions."""
+    client = await Client.connect("localhost:7233")
+    handle = client.get_schedule_handle("interval-schedule-id")
+
+    now = datetime.utcnow()
+    await handle.backfill(
+        ScheduleBackfill(
+            start_at=now - timedelta(hours=2),  # Backfill last 2 hours
+            end_at=now - timedelta(minutes=5),  # Up to 5 minutes ago
+            overlap=ScheduleOverlapPolicy.ALLOW_ALL,  # Allow overlapping executions
+        ),
+    )
+    print("Schedule backfilled successfully")
+
+async def manage_schedule():
+    """Comprehensive schedule management example."""
+    client = await Client.connect("localhost:7233")
+
+    # Create schedule with multiple intervals
+    await client.create_schedule(
+        "complex-schedule-id",
+        Schedule(
+            action=ScheduleActionStartWorkflow(
+                ScheduledWorkflow.run,
+                "complex data",
+                id="complex-workflow-id",
+                task_queue="complex-task-queue",
+            ),
+            spec=ScheduleSpec(
+                intervals=[
+                    ScheduleIntervalSpec(every=timedelta(minutes=30)),  # Every 30 min
+                ],
+                cron_expressions=["0 0 * * SUN"],  # Also weekly on Sunday
+            ),
+            state=ScheduleState(
+                note="Mixed interval and cron schedule",
+                paused=False,
+            ),
+        ),
+    )
+
+    # Get handle for management operations
+    handle = client.get_schedule_handle("complex-schedule-id")
+
+    # Pause the schedule
+    await handle.pause(note="Pausing for maintenance")
+
+    # Resume the schedule
+    await handle.unpause(note="Maintenance complete")
+
+    # Update the schedule
+    async def updater(input):
+        input.schedule.state.note = "Updated schedule"
+        return input.schedule
+
+    await handle.update(updater)
+
+# Common use cases:
+# - Periodic data processing (ETL jobs)
+# - Regular health checks and monitoring
+# - Scheduled reports and notifications
+# - Batch processing at off-peak hours
+# - Cleanup and maintenance tasks
+```
 
 ## Pydantic Converter
 
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/pydantic_converter/worker.py
+The Pydantic Converter pattern enables seamless serialization and deserialization of Pydantic models in Temporal workflows and activities. This provides type safety, validation, and rich data modeling capabilities while maintaining compatibility with Temporal's payload system.
+
+**Key Implementation:**
+
+- Use `pydantic_data_converter` for automatic Pydantic model serialization
+- Import Pydantic safely with `workflow.unsafe.imports_passed_through()`
+- Configure both client and worker with the same data converter
+- Leverage Pydantic's validation and type conversion features
+- Essential for complex data structures and type safety
+
+```python
+from datetime import datetime, timedelta
+from ipaddress import IPv4Address
+from typing import List
+from temporalio import activity, workflow
+from temporalio.client import Client
+from temporalio.worker import Worker
+
+# Import Pydantic safely for workflow use
+with workflow.unsafe.imports_passed_through():
+    from pydantic import BaseModel, validator
+    from temporalio.contrib.pydantic import pydantic_data_converter
+
+class UserData(BaseModel):
+    """Simple user data with validation."""
+    user_id: int
+    ip_address: IPv4Address
+
+    @validator('user_id')
+    def validate_user_id(cls, v):
+        if v <= 0:
+            raise ValueError('user_id must be positive')
+        return v
+
+@activity.defn
+async def process_users(users: List[UserData]) -> int:
+    """Process users and return count."""
+    activity.logger.info(f"Processing {len(users)} users")
+
+    for user in users:
+        # Pydantic ensures type safety and validation
+        activity.logger.info(f"Processing user {user.user_id} from {user.ip_address}")
+
+    return len(users)
+
+@workflow.defn
+class PydanticWorkflow:
+    @workflow.run
+    async def run(self, users: List[UserData]) -> int:
+        """Process users with type-safe Pydantic models."""
+        return await workflow.execute_activity(
+            process_users,
+            users,
+            start_to_close_timeout=timedelta(minutes=1)
+        )
+
+# Setup client and worker with Pydantic converter
+async def main():
+    client = await Client.connect(
+        "localhost:7233",
+        data_converter=pydantic_data_converter
+    )
+
+    async with Worker(
+        client,
+        task_queue="pydantic-task-queue",
+        workflows=[PydanticWorkflow],
+        activities=[process_users],
+    ):
+        # Execute workflow with validated Pydantic models
+        users = [
+            UserData(user_id=1, ip_address="192.168.1.1"),
+            UserData(user_id=2, ip_address="10.0.0.1")
+        ]
+
+        result = await client.execute_workflow(
+            PydanticWorkflow.run,
+            users,
+            id="pydantic-workflow-id",
+            task_queue="pydantic-task-queue"
+        )
+
+        print(f"Processed {result} users")
+```
