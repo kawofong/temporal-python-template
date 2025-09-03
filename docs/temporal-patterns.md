@@ -572,16 +572,271 @@ async def create_metrics_worker():
 
 ## Encryption
 
-https://github.com/temporalio/samples-python/blob/main/encryption/codec.py
-https://github.com/temporalio/samples-python/blob/main/encryption/worker.py
+The Encryption pattern enables end-to-end encryption of workflow and activity payloads using custom payload codecs. This ensures sensitive data is encrypted at rest and in transit, with only authorized workers able to decrypt the data.
+
+**Key Implementation:**
+
+- Create custom `PayloadCodec` to handle encryption/decryption of payload data
+- Configure `data_converter` with custom codec for both clients and workers
+- Include key ID metadata for key rotation and management
+- Essential for protecting sensitive data in workflows
+
+```python
+import os
+import dataclasses
+from typing import Iterable, List
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from temporalio.api.common.v1 import Payload
+from temporalio.converter import PayloadCodec
+import temporalio.converter
+from temporalio.client import Client
+from temporalio.worker import Worker
+
+class EncryptionCodec(PayloadCodec):
+    """Custom codec for encrypting/decrypting workflow payloads."""
+
+    def __init__(self, key_id: str = "production-key-id", key: bytes = None) -> None:
+        super().__init__()
+        self.key_id = key_id
+        if key is None:
+            # In production, load from secure key management system
+            key = os.environ.get("TEMPORAL_ENCRYPTION_KEY", "").encode()
+        self.encryptor = AESGCM(key)
+
+    async def encode(self, payloads: Iterable[Payload]) -> List[Payload]:
+        """Encrypt all payloads with AES-GCM encryption."""
+        return [
+            Payload(
+                metadata={
+                    "encoding": b"binary/encrypted",
+                    "encryption-key-id": self.key_id.encode(),
+                },
+                data=self.encrypt(p.SerializeToString()),
+            )
+            for p in payloads
+        ]
+
+    async def decode(self, payloads: Iterable[Payload]) -> List[Payload]:
+        """Decrypt payloads, skipping non-encrypted ones."""
+        ret: List[Payload] = []
+        for p in payloads:
+            # Skip non-encrypted payloads
+            if p.metadata.get("encoding", b"").decode() != "binary/encrypted":
+                ret.append(p)
+                continue
+
+            # Verify key ID matches
+            key_id = p.metadata.get("encryption-key-id", b"").decode()
+            if key_id != self.key_id:
+                raise ValueError(f"Unknown key ID: {key_id}")
+
+            # Decrypt and append
+            ret.append(Payload.FromString(self.decrypt(p.data)))
+        return ret
+
+    def encrypt(self, data: bytes) -> bytes:
+        """Encrypt data with random nonce."""
+        nonce = os.urandom(12)  # 96-bit nonce for AES-GCM
+        return nonce + self.encryptor.encrypt(nonce, data, None)
+
+    def decrypt(self, data: bytes) -> bytes:
+        """Decrypt data, extracting nonce from prefix."""
+        nonce = data[:12]
+        ciphertext = data[12:]
+        return self.encryptor.decrypt(nonce, ciphertext, None)
+
+# Configure client and worker with encryption
+async def create_encrypted_client() -> Client:
+    """Create client with encryption codec."""
+    return await Client.connect(
+        "localhost:7233",
+        data_converter=dataclasses.replace(
+            temporalio.converter.default(),
+            payload_codec=EncryptionCodec()
+        ),
+    )
+
+async def run_encrypted_worker():
+    """Run worker with encryption support."""
+    client = await create_encrypted_client()
+
+    async with Worker(
+        client,
+        task_queue="encrypted-task-queue",
+        workflows=[MyWorkflow],
+        activities=[my_activity],
+    ):
+        print("Encrypted worker running...")
+        # Worker processes encrypted payloads transparently
+
+# Key management best practices:
+# - Use environment variables or secure key management systems
+# - Implement key rotation with multiple key IDs
+# - Never hardcode encryption keys in source code
+```
 
 ## Polling (frequent)
 
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/polling/frequent/activities.py
+The Frequent Polling pattern enables activities to continuously poll external services until a condition is met or data becomes available. This pattern uses heartbeating and exception handling to maintain resilience during polling operations.
+
+**Key Implementation:**
+
+- Use infinite loop with `while True` for continuous polling
+- Implement `activity.heartbeat()` to prevent activity timeouts during long polls
+- Handle exceptions gracefully to continue polling when services are temporarily unavailable
+- Use `asyncio.sleep()` for polling intervals to avoid overwhelming external services
+- Handle `asyncio.CancelledError` for proper cleanup when activity is cancelled
+
+```python
+import asyncio
+from temporalio import activity
+from typing import Optional
+
+@activity.defn
+async def poll_external_service(service_url: str, poll_interval: int = 1) -> str:
+    """Poll external service until data is available."""
+
+    while True:
+        try:
+            try:
+                # Attempt to get result from external service
+                result = await fetch_from_service(service_url)
+                if result is not None:
+                    activity.logger.info(f"Service returned result: {result}")
+                    return result
+            except Exception as e:
+                # Log but swallow exception - service may be temporarily down
+                activity.logger.debug(
+                    f"Service call failed: {e}, retrying in {poll_interval}s",
+                    exc_info=True
+                )
+            # Heartbeat to prevent activity timeout
+            activity.heartbeat(f"Polling service at {service_url}")
+            # Wait before next poll attempt
+            await asyncio.sleep(poll_interval)
+        except asyncio.CancelledError:
+            # Handle cancellation for cleanup
+            activity.logger.info("Polling activity cancelled")
+            # Perform any necessary cleanup here
+            raise
+
+
+async def fetch_from_service(url: str) -> Optional[str]:
+    """Simulate external service call."""
+    # Implementation would make actual HTTP request
+    # Return None if no data available, raise exception on error
+    pass
+
+# Usage in workflow:
+# result = await workflow.execute_activity(
+#     poll_external_service,
+#     "https://api.example.com/status",
+#     start_to_close_timeout=timedelta(minutes=30),
+#     heartbeat_timeout=timedelta(seconds=10),
+# )
+```
 
 ## Polling (infrequent)
 
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/polling/infrequent/workflows.py
+The Infrequent Polling pattern uses Temporal's retry mechanism to poll external services at longer intervals without maintaining long-running activities. This pattern leverages activity failures and retry policies to achieve polling behavior efficiently.
+
+**Key Implementation:**
+
+- Use short activity timeouts with retry policies for polling intervals
+- Configure `RetryPolicy` with appropriate `initial_interval` for polling frequency
+- Set `backoff_coefficient=1.0` to maintain consistent polling intervals
+- Activities fail quickly and rely on Temporal's retry system for timing
+- More efficient than long-running activities for infrequent polling needs
+
+```python
+from datetime import timedelta
+from temporalio import activity, workflow
+from temporalio.common import RetryPolicy
+
+# Import activities safely in workflow
+with workflow.unsafe.imports_passed_through():
+    from my_app.activities import check_external_service
+
+@activity.defn
+async def poll_service_status(service_url: str) -> str:
+    """Short-lived activity that checks service status."""
+
+    # Attempt to get result from external service
+    result = await fetch_service_status(service_url)
+
+    if result is None or not result.is_ready:
+        # Fail the activity to trigger retry
+        activity.logger.info("Service not ready, will retry")
+        raise RuntimeError("Service not ready")
+
+    activity.logger.info(f"Service is ready: {result.status}")
+    return result.status
+
+@activity.defn
+async def check_job_completion(job_id: str) -> bool:
+    """Check if a long-running job has completed."""
+
+    job_status = await get_job_status(job_id)
+
+    if job_status.state in ["pending", "running"]:
+        activity.logger.info(f"Job {job_id} still {job_status.state}")
+        raise RuntimeError(f"Job not complete: {job_status.state}")
+
+    if job_status.state == "failed":
+        raise ValueError(f"Job {job_id} failed: {job_status.error}")
+
+    activity.logger.info(f"Job {job_id} completed successfully")
+    return True
+
+@workflow.defn
+class InfrequentPollingWorkflow:
+    @workflow.run
+    async def run(self, service_url: str) -> str:
+        # Poll every 60 seconds until service is ready
+        return await workflow.execute_activity(
+            poll_service_status,
+            service_url,
+            start_to_close_timeout=timedelta(seconds=5),  # Short timeout
+            retry_policy=RetryPolicy(
+                backoff_coefficient=1.0,  # No exponential backoff
+                initial_interval=timedelta(seconds=60),  # Poll every 60 seconds
+                maximum_interval=timedelta(seconds=60),   # Keep consistent
+                maximum_attempts=100,  # Limit total attempts
+            ),
+        )
+
+@workflow.defn
+class JobMonitoringWorkflow:
+    @workflow.run
+    async def run(self, job_id: str) -> bool:
+        # Check job completion every 5 minutes
+        return await workflow.execute_activity(
+            check_job_completion,
+            job_id,
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=RetryPolicy(
+                backoff_coefficient=1.0,
+                initial_interval=timedelta(minutes=5),  # Check every 5 minutes
+                maximum_interval=timedelta(minutes=5),
+                maximum_attempts=48,  # 4 hours maximum (48 * 5min)
+            ),
+        )
+
+# Helper functions (would be implemented based on your external services)
+async def fetch_service_status(url: str):
+    """Fetch status from external service."""
+    pass
+
+async def get_job_status(job_id: str):
+    """Get job status from external system."""
+    pass
+
+# Benefits over frequent polling:
+# - Lower resource usage (no long-running activities)
+# - Leverages Temporal's built-in retry mechanism
+# - Automatic failure handling and exponential backoff if needed
+# - Better for polling intervals > 30 seconds
+```
 
 ## Schedule
 
