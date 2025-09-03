@@ -240,3 +240,236 @@ result = await handle.execute_update(
 - Can be synchronous (state-only) or async (with activities)
 - Use `ApplicationError` for client-visible failures
 - Often use locks for thread-safe async operations
+
+## Retry Policy
+
+Retry policies define how activities and child workflows should be retried when they fail. Temporal provides automatic retry capabilities with configurable backoff strategies, maximum attempts, and timeout settings.
+
+```python
+from datetime import timedelta
+from temporalio.common import RetryPolicy
+
+@activity.defn
+def compose_greeting(input: ComposeGreetingInput) -> str:
+    print(f"Invoking activity, attempt number {activity.info().attempt}")
+    # Fail the first 3 attempts, succeed the 4th
+    if activity.info().attempt < 4:
+        raise RuntimeError("Intentional failure")
+    return f"{input.greeting}, {input.name}!"
+
+@workflow.defn
+class GreetingWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        return await workflow.execute_activity(
+            compose_greeting,
+            ComposeGreetingInput("Hello", name),
+            start_to_close_timeout=timedelta(seconds=10),
+            retry_policy=RetryPolicy(maximum_interval=timedelta(seconds=2)),
+        )
+```
+
+**Default retry behavior:**
+
+- Activities retry automatically with exponential backoff
+- Initial interval: 1 second
+- Backoff coefficient: 2.0 (doubles each retry)
+- Maximum interval: 100 × initial interval
+- Unlimited attempts and duration by default
+- It's very common for Temporal Activity to use the default Retry Policy
+
+**Custom retry policy configuration:**
+
+```python
+from temporalio.common import RetryPolicy
+
+# Custom retry policy with specific limits
+custom_retry = RetryPolicy(
+    initial_interval=timedelta(seconds=1),      # First retry after 1s
+    backoff_coefficient=2.0,                    # Double interval each retry
+    maximum_interval=timedelta(seconds=30),     # Cap at 30s between retries
+    maximum_attempts=5,                         # Stop after 5 attempts
+    non_retryable_error_types=["ValueError"],   # Don't retry these errors
+)
+
+await workflow.execute_activity(
+    my_activity,
+    input_data,
+    start_to_close_timeout=timedelta(minutes=5),
+    retry_policy=custom_retry,
+)
+```
+
+**Activity retry information:**
+
+```python
+@activity.defn
+def my_activity() -> str:
+    # Access retry attempt information
+    attempt = activity.info().attempt
+    activity.logger.info(f"Attempt #{attempt}")
+
+    # Conditional logic based on attempt
+    if attempt < 3:
+        raise RuntimeError(f"Failing attempt {attempt}")
+
+    return "Success!"
+```
+
+**Key characteristics:**
+
+- Use `RetryPolicy` class to configure retry behavior
+- Access current attempt via `activity.info().attempt`
+- Exponential backoff prevents overwhelming downstream services
+- `non_retryable_error_types` for permanent failures
+- Applies to both activities and child workflows
+- Retry state persists across worker restarts
+
+## Search Attributes
+
+Search Attributes are key-value pairs that enable filtering and searching workflows in Temporal. They're indexed metadata that can be set at workflow start and updated during execution, making workflows discoverable through the Temporal Web UI and programmatic queries.
+
+```python
+from temporalio.common import SearchAttributeKey, SearchAttributePair, TypedSearchAttributes
+
+# Define typed search attribute keys
+customer_id_key = SearchAttributeKey.for_keyword("CustomerId")
+misc_data_key = SearchAttributeKey.for_text("MiscData")
+
+@workflow.defn
+class GreetingWorkflow:
+    @workflow.run
+    async def run(self) -> None:
+        # Wait a couple seconds, then alter the search attributes
+        await asyncio.sleep(2)
+        workflow.upsert_search_attributes(TypedSearchAttributes([
+            SearchAttributePair(customer_id_key, "customer_2")
+        ]))
+
+# Client usage - starting workflow with typed search attributes
+handle = await client.start_workflow(
+    GreetingWorkflow.run,
+    id="search-attributes-workflow-id",
+    task_queue="search-attributes-task-queue",
+    search_attributes=TypedSearchAttributes([
+        SearchAttributePair(customer_id_key, "customer_1"),
+        SearchAttributePair(misc_data_key, "customer_1_data")
+    ]),
+)
+
+# Reading search attributes from workflow handle
+search_attrs = (await handle.describe()).search_attributes
+print("Search attribute values:", search_attrs.get("CustomerId"))
+```
+
+**Creating typed search attribute keys:**
+
+```python
+from temporalio.common import SearchAttributeKey
+
+# Different types of search attribute keys
+customer_id_key = SearchAttributeKey.for_keyword("CustomerId")
+order_value_key = SearchAttributeKey.for_float("OrderValue")
+item_count_key = SearchAttributeKey.for_int("ItemCount")
+is_priority_key = SearchAttributeKey.for_bool("IsPriority")
+created_date_key = SearchAttributeKey.for_datetime("CreatedDate")
+tags_key = SearchAttributeKey.for_keyword_list("Tags")
+description_key = SearchAttributeKey.for_text("Description")
+```
+
+**Updating search attributes during workflow execution:**
+
+```python
+from datetime import datetime
+
+@workflow.defn
+class OrderWorkflow:
+    @workflow.run
+    async def run(self, order_id: str) -> str:
+        # Set initial search attributes using typed API
+        workflow.upsert_search_attributes(TypedSearchAttributes([
+            SearchAttributePair(customer_id_key, "customer_1"),
+            SearchAttributePair(order_value_key, 100.50),
+            SearchAttributePair(item_count_key, 3),
+            SearchAttributePair(is_priority_key, True),
+            SearchAttributePair(created_date_key, datetime.now()),
+            SearchAttributePair(tags_key, ["electronics", "urgent"])
+        ]))
+
+        # Process order...
+        await workflow.execute_activity(
+            process_payment,
+            start_to_close_timeout=timedelta(minutes=5),
+        )
+
+        # Update search attributes after processing
+        workflow.upsert_search_attributes(TypedSearchAttributes([
+            SearchAttributePair(customer_id_key, "customer_1_processed")
+        ]))
+
+        return "Order completed"
+
+```
+
+**Removing search attributes:**
+
+```python
+@workflow.defn
+class CleanupWorkflow:
+    @workflow.run
+    async def run(self) -> str:
+        # Set some initial search attributes
+        workflow.upsert_search_attributes(TypedSearchAttributes([
+            SearchAttributePair(customer_id_key, "customer_1"),
+            SearchAttributePair(tags_key, ["electronics", "urgent"]),
+            SearchAttributePair(is_priority_key, True)
+        ]))
+
+        # Do some work...
+        await asyncio.sleep(1)
+
+        # Remove specific search attributes by setting them to empty list
+        workflow.upsert_search_attributes(TypedSearchAttributes([
+            SearchAttributePair(tags_key, []),           # Remove tags
+            SearchAttributePair(is_priority_key, [])     # Remove priority flag
+        ]))
+
+        # customer_id_key remains set, only tags and is_priority are removed
+        return "Cleanup completed"
+```
+
+**Querying workflows by search attributes:**
+
+```python
+# List workflows with specific search attributes using string queries
+async for workflow in client.list_workflows(
+    query='WorkflowType="GreetingWorkflow"'
+):
+    print(f"Workflow: {workflow.id}")
+
+# Advanced queries with multiple conditions
+query = """
+    CustomerId="customer_1" AND
+    OrderValue > 50.0 AND
+    ItemCount >= 1 AND
+    StartTime > "2024-01-01T00:00:00Z"
+"""
+async for workflow in client.list_workflows(query=query):
+    print(f"Found workflow: {workflow.id}")
+
+# Query with keyword lists
+query = 'Tags IN ("electronics", "urgent")'
+workflows = client.list_workflows(query=query)
+```
+
+**Key characteristics:**
+
+- Use typed search attributes with `SearchAttributeKey` for type safety
+- Create search attributes with `TypedSearchAttributes` and `SearchAttributePair`
+- Use `workflow.upsert_search_attributes()` to set/update attributes during execution
+- Set initial attributes via `search_attributes` parameter when starting workflows
+- Search attributes are indexed and queryable through Temporal Web UI and CLI
+- Support multiple data types: Bool, Datetime, Double, Int, Keyword, KeywordList, Text
+- Remove attributes by setting them to empty list: `[]`
+- Enable powerful workflow discovery and monitoring capabilities
+- Persist across workflow restarts and are available after completion
