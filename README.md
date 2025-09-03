@@ -1,5 +1,8 @@
 # Temporal Python SDK Project Template
 
+[![GitHub License](https://img.shields.io/github/license/kawofong/temporal-python-template)](https://github.com/kawofong/temporal-python-template/blob/main/LICENSE)
+[![Code Coverage](https://img.shields.io/badge/codecov-report-blue)](https://app.codecov.io/gh/kawofong/temporal-python-template)
+
 ## Introduction
 
 A modern, production-ready template for building Temporal applications using [Temporal Python SDK](https://docs.temporal.io/dev-guide/python). This template provides a solid foundation for developing Workflow-based applications with comprehensive testing, linting, and modern Python tooling.
