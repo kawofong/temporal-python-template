@@ -38,9 +38,7 @@ class TestHttpGetActivity:
         mock_session.__aexit__ = AsyncMock(return_value=None)
 
         # Mock the ClientSession constructor
-        with patch(
-            "aiohttp.ClientSession", return_value=mock_session
-        ) as mock_client_session:
+        with patch("aiohttp.ClientSession", return_value=mock_session) as mock_client_session:
             # Execute the activity
             activity_environment = ActivityEnvironment()
             input_data = HttpGetActivityInput(url=test_url)

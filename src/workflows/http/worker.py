@@ -13,9 +13,7 @@ from workflows.http.http_activities import http_get
 
 async def main() -> None:
     """Connects to the client, starts a worker, and executes the workflow."""
-    client = await Client.connect(
-        "localhost:7233", data_converter=pydantic_data_converter
-    )
+    client = await Client.connect("localhost:7233", data_converter=pydantic_data_converter)
     task_queue = "http-task-queue"
     worker = Worker(
         client,

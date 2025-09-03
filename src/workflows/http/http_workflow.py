@@ -56,9 +56,7 @@ async def main() -> None:  # pragma: no cover
     from temporalio.client import Client  # noqa: PLC0415
     from temporalio.contrib.pydantic import pydantic_data_converter  # noqa: PLC0415
 
-    client = await Client.connect(
-        "localhost:7233", data_converter=pydantic_data_converter
-    )
+    client = await Client.connect("localhost:7233", data_converter=pydantic_data_converter)
     input_data = HttpWorkflowInput(url="https://httpbin.org/anything/http-workflow")
     success_result = await client.execute_workflow(
         HttpWorkflow.run,

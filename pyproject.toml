@@ -13,6 +13,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "poethepoet==0.37.0",
+    "pre-commit==4.3.0",
     "pytest==8.4.1",
     "pytest-asyncio==1.1.0",
     "pytest-cov==6.2.1",
@@ -79,3 +80,19 @@ cmd = "ruff check ."
 [tool.poe.tasks.format]
 help = "Run the formatter."
 cmd = "ruff format ."
+
+[tool.poe.tasks.pre-commit-install]
+help = "Install pre-commit hooks."
+cmd = "pre-commit install --hook-type pre-commit --hook-type pre-push"
+
+[tool.poe.tasks.pre-commit-run]
+help = "Run pre-commit hooks on all files."
+cmd = "pre-commit run --all-files"
+
+[tool.poe.tasks.pre-commit-update]
+help = "Update pre-commit hook versions."
+cmd = "pre-commit autoupdate"
+
+[tool.bandit]
+exclude_dirs = ["tests", "*_tests.py"]
+skips = ["B101"]  # Skip assert_used test

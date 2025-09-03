@@ -14,6 +14,9 @@ from src.workflows.http.http_workflow import (
     HttpWorkflowOutput,
 )
 
+# Constants
+HTTP_OK_STATUS = 200
+
 
 class TestHttpWorkflow:
     """Test suite for HttpWorkflow.
@@ -36,6 +39,7 @@ class TestHttpWorkflow:
         Args:
             client: Temporal test client
             task_queue: Test task queue name
+
         """
 
         @activity.defn(name="http_get")
@@ -69,7 +73,7 @@ class TestHttpWorkflow:
             assert isinstance(result, HttpWorkflowOutput)
             assert result.response_text == f"Mocked response for {test_url}"
             assert str(result.url) == test_url
-            assert result.status_code == 200
+            assert result.status_code == HTTP_OK_STATUS
 
 
 if __name__ == "__main__":
