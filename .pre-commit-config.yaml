@@ -3,15 +3,36 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # File formatting and basic checks
       - id: trailing-whitespace
       - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+
+      # Syntax validation
       - id: check-yaml
       - id: check-toml
       - id: check-json
+      - id: check-ast
+
+      # Python code quality
+      - id: check-builtin-literals
+      - id: check-docstring-first
+      - id: debug-statements
+
+      # File system checks
       - id: check-merge-conflict
       - id: check-added-large-files
       - id: check-case-conflict
-      - id: debug-statements
+      - id: check-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+
+      # Security checks
+      - id: detect-private-key
+
+      # Test naming convention
+      - id: name-tests-test
 
   # Ruff for linting and formatting (replacing black, isort, flake8, etc.)
   - repo: https://github.com/astral-sh/ruff-pre-commit
