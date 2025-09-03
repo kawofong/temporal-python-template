@@ -12,12 +12,24 @@ The Activity Choice pattern enables workflows to dynamically select and execute 
 
 ```python
 from enum import IntEnum
+from typing import List
 from temporalio import activity, workflow
+
+# Import Pydantic safely for workflow use
+with workflow.unsafe.imports_passed_through():
+    from pydantic import BaseModel
 
 class Fruit(IntEnum):
     APPLE = 1
     BANANA = 2
     CHERRY = 3
+
+class ShoppingItem(BaseModel):
+    fruit: Fruit
+    amount: int
+
+class ShoppingList(BaseModel):
+    items: List[ShoppingItem]
 
 @activity.defn
 def order_apples(amount: int) -> str:
@@ -155,17 +167,18 @@ The Continue-as-New pattern enables workflows to reset their execution history w
 - Essential for preventing Event History limits and performance degradation
 
 ```python
-from dataclasses import dataclass
 from typing import Optional
 from temporalio import workflow
 
-@dataclass
-class WorkflowState:
+# Import Pydantic safely for workflow use
+with workflow.unsafe.imports_passed_through():
+    from pydantic import BaseModel
+
+class WorkflowState(BaseModel):
     iteration: int = 0
     processed_items: int = 0
 
-@dataclass
-class WorkflowInput:
+class WorkflowInput(BaseModel):
     state: Optional[WorkflowState] = None
     max_iterations: int = 1000
 
@@ -213,12 +226,14 @@ The Child Workflow pattern enables workflows to spawn and manage other workflow 
 - In general, Activity or chain of Activity can be used in place of Child Workflows. If possible, it is recommended to use Activity instead of Child Workflows
 
 ```python
-from dataclasses import dataclass
 from temporalio import workflow
 from temporalio.workflow import ParentClosePolicy
 
-@dataclass
-class ComposeGreetingInput:
+# Import Pydantic safely for workflow use
+with workflow.unsafe.imports_passed_through():
+    from pydantic import BaseModel
+
+class ComposeGreetingInput(BaseModel):
     greeting: str
     name: str
 
@@ -275,15 +290,17 @@ The Exception pattern demonstrates proper error handling in Temporal workflows, 
 - Exceptions maintain causality chain: WorkflowFailureError → ActivityError → ApplicationError
 
 ```python
-from dataclasses import dataclass
 from datetime import timedelta
 from temporalio import activity, workflow
 from temporalio.client import WorkflowFailureError
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import FailureError
 
-@dataclass
-class ProcessingInput:
+# Import Pydantic safely for workflow use
+with workflow.unsafe.imports_passed_through():
+    from pydantic import BaseModel
+
+class ProcessingInput(BaseModel):
     data: str
     should_fail: bool = False
 
@@ -344,12 +361,14 @@ The Local Activity pattern enables workflows to execute activities directly with
 - Avoid Local Acitivty for external API calls, long-running operations, operations requiring durability
 
 ```python
-from dataclasses import dataclass
 from datetime import timedelta
 from temporalio import activity, workflow
 
-@dataclass
-class ProcessingInput:
+# Import Pydantic safely for workflow use
+with workflow.unsafe.imports_passed_through():
+    from pydantic import BaseModel
+
+class ProcessingInput(BaseModel):
     greeting: str
     name: str
 
@@ -583,11 +602,10 @@ The Encryption pattern enables end-to-end encryption of workflow and activity pa
 
 ```python
 import os
-import dataclasses
 from typing import Iterable, List
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from temporalio.api.common.v1 import Payload
-from temporalio.converter import PayloadCodec
+from temporalio.converter import DataConverter, PayloadCodec
 import temporalio.converter
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -648,12 +666,17 @@ class EncryptionCodec(PayloadCodec):
 # Configure client and worker with encryption
 async def create_encrypted_client() -> Client:
     """Create client with encryption codec."""
+    # Create data converter with custom encryption codec
+    default_converter = temporalio.converter.default()
+    encrypted_converter = DataConverter(
+        payload_converters=default_converter.payload_converters,
+        failure_converters=default_converter.failure_converters,
+        payload_codec=EncryptionCodec()
+    )
+
     return await Client.connect(
         "localhost:7233",
-        data_converter=dataclasses.replace(
-            temporalio.converter.default(),
-            payload_codec=EncryptionCodec()
-        ),
+        data_converter=encrypted_converter,
     )
 
 async def run_encrypted_worker():
