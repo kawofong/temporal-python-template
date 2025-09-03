@@ -8,6 +8,7 @@ wheels/
 .ruff_cache/
 .coverage
 .pytest_cache/
+coverage.xml
 
 # Virtual environments
 .venv
