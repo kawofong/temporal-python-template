@@ -332,15 +332,243 @@ def append_temporal_stack(exc: BaseException) -> None:
 
 ## Local Activity
 
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/hello/hello_local_activity.py
+The Local Activity pattern enables workflows to execute activities directly within the worker process without task queue scheduling. Local activities provide lower latency and reduced overhead for short-duration operations, but sacrifice some of Temporal's durability guarantees.
+
+**Key Implementation:**
+
+- Use `workflow.execute_local_activity()` instead of `workflow.execute_activity()`
+- Activities run in the same worker process as the workflow
+- Lower latency and reduced network overhead compared to regular activities
+- Limited retry capabilities and no cross-worker execution
+- Best for fast, lightweight operations that don't require full durability
+- Avoid Local Acitivty for external API calls, long-running operations, operations requiring durability
+
+```python
+from dataclasses import dataclass
+from datetime import timedelta
+from temporalio import activity, workflow
+
+@dataclass
+class ProcessingInput:
+    greeting: str
+    name: str
+
+@activity.defn
+def compose_greeting(input: ProcessingInput) -> str:
+    """Fast local activity for simple string processing."""
+    return f"{input.greeting}, {input.name}!"
+
+@activity.defn
+def validate_input(data: str) -> bool:
+    """Quick validation that runs locally."""
+    return len(data.strip()) > 0
+
+@workflow.defn
+class LocalActivityWorkflow:
+    @workflow.run
+    async def run(self, name: str) -> str:
+        # Execute local activity for fast processing
+        result = await workflow.execute_local_activity(
+            compose_greeting,
+            ProcessingInput("Hello", name),
+            start_to_close_timeout=timedelta(seconds=10),
+        )
+
+        # Chain multiple local activities
+        is_valid = await workflow.execute_local_activity(
+            validate_input,
+            result,
+            start_to_close_timeout=timedelta(seconds=5),
+        )
+
+        return result if is_valid else "Invalid result"
+```
 
 ## Authenticate using mTLS
 
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/hello/hello_mtls.py
+The mTLS (mutual Transport Layer Security) pattern enables secure authentication between Temporal clients/workers and the Temporal server using client certificates. This provides strong authentication and encryption for production deployments.
+
+**Key Implementation:**
+
+- Use `TLSConfig` to configure client certificates and server CA validation
+- Load client certificate and private key from files
+- Optionally specify server root CA certificate for validation
+- Apply TLS configuration to both client connections and workers
+- Essential for secure production Temporal deployments
+
+```python
+import argparse
+from typing import Optional
+from temporalio import activity, workflow
+from temporalio.client import Client
+from temporalio.service import TLSConfig
+from temporalio.worker import Worker
+
+async def create_secure_client(
+    target_host: str = "localhost:7233",
+    namespace: str = "default",
+    server_root_ca_cert_path: Optional[str] = None,
+    client_cert_path: str = "client.crt",
+    client_key_path: str = "client.key"
+) -> Client:
+    """Create a Temporal client with mTLS authentication."""
+
+    # Load server root CA certificate (optional)
+    server_root_ca_cert: Optional[bytes] = None
+    if server_root_ca_cert_path:
+        with open(server_root_ca_cert_path, "rb") as f:
+            server_root_ca_cert = f.read()
+
+    # Load client certificate and private key (required)
+    with open(client_cert_path, "rb") as f:
+        client_cert = f.read()
+
+    with open(client_key_path, "rb") as f:
+        client_key = f.read()
+
+    # Create client with TLS configuration
+    return await Client.connect(
+        target_host,
+        namespace=namespace,
+        tls=TLSConfig(
+            server_root_ca_cert=server_root_ca_cert,
+            client_cert=client_cert,
+            client_private_key=client_key,
+        ),
+    )
+
+@workflow.defn
+class SecureWorkflow:
+    @workflow.run
+    async def run(self, data: str) -> str:
+        return f"Securely processed: {data}"
+
+# Usage example
+async def main():
+    # Create secure client
+    client = await create_secure_client(
+        target_host="your-temporal-server:7233",
+        client_cert_path="/path/to/client.crt",
+        client_key_path="/path/to/client.key",
+        server_root_ca_cert_path="/path/to/server-ca.crt"
+    )
+
+    # Worker also uses the same secure client
+    async with Worker(
+        client,
+        task_queue="secure-task-queue",
+        workflows=[SecureWorkflow],
+    ):
+        result = await client.execute_workflow(
+            SecureWorkflow.run,
+            "sensitive-data",
+            id="secure-workflow-id",
+            task_queue="secure-task-queue",
+        )
+        print(f"Result: {result}")
+```
 
 ## Custom Metrics
 
-https://raw.githubusercontent.com/temporalio/samples-python/refs/heads/main/custom_metric/worker.py
+The Custom Metrics pattern enables workflows and activities to emit custom telemetry data using Temporal's built-in metrics system. This pattern uses interceptors to capture timing data and Prometheus for metrics collection and monitoring.
+
+**Key Implementation:**
+
+- Use `Runtime` with `TelemetryConfig` to configure Prometheus metrics
+- Create interceptors to capture custom metrics during activity execution
+- Use `activity.metric_meter()` to create and record histogram metrics
+- Configure Prometheus endpoint for metrics collection
+- Essential for monitoring workflow performance and business metrics
+
+```python
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from temporalio import activity
+from temporalio.client import Client
+from temporalio.runtime import PrometheusConfig, Runtime, TelemetryConfig
+from temporalio.worker import (
+    ActivityInboundInterceptor,
+    ExecuteActivityInput,
+    Interceptor,
+    Worker,
+)
+
+class CustomMetricsInterceptor(Interceptor):
+    """Interceptor to add custom metrics collection."""
+
+    def intercept_activity(
+        self, next: ActivityInboundInterceptor
+    ) -> ActivityInboundInterceptor:
+        return ActivityMetricsInterceptor(next)
+
+class ActivityMetricsInterceptor(ActivityInboundInterceptor):
+    """Captures activity scheduling and execution metrics."""
+
+    async def execute_activity(self, input: ExecuteActivityInput):
+        # Calculate schedule-to-start latency
+        schedule_to_start = (
+            activity.info().started_time -
+            activity.info().current_attempt_scheduled_time
+        )
+
+        # Create custom histogram metric
+        meter = activity.metric_meter()
+        latency_histogram = meter.create_histogram_timedelta(
+            "activity_schedule_to_start_latency",
+            description="Time between activity scheduling and start",
+            unit="duration",
+        )
+
+        # Record metric with labels
+        latency_histogram.record(
+            schedule_to_start,
+            {
+                "workflow_type": activity.info().workflow_type,
+                "activity_type": activity.info().activity_type,
+            }
+        )
+
+        # Create business metrics
+        counter = meter.create_counter_int(
+            "activity_executions_total",
+            description="Total number of activity executions",
+        )
+        counter.add(1, {"status": "started"})
+
+        try:
+            result = await self.next.execute_activity(input)
+            counter.add(1, {"status": "completed"})
+            return result
+        except Exception as e:
+            counter.add(1, {"status": "failed"})
+            raise
+
+async def create_metrics_worker():
+    """Create worker with custom metrics configuration."""
+
+    # Configure Prometheus metrics
+    runtime = Runtime(
+        telemetry=TelemetryConfig(
+            metrics=PrometheusConfig(bind_address="0.0.0.0:9090")
+        )
+    )
+
+    # Create client with metrics runtime
+    client = await Client.connect("localhost:7233", runtime=runtime)
+
+    # Create worker with custom interceptor
+    return Worker(
+        client,
+        task_queue="metrics-task-queue",
+        interceptors=[CustomMetricsInterceptor()],
+        workflows=[MyWorkflow],
+        activities=[my_activity],
+        activity_executor=ThreadPoolExecutor(2),
+    )
+
+# Metrics are available at http://localhost:9090/metrics
+# Common metrics: activity latency, execution counts, error rates, business KPIs
+```
 
 ## Encryption
 
