@@ -13,7 +13,7 @@ A modern, production-ready template for building Temporal applications using [Te
 - Complete testing setup (pytest) with async support
 - Pre-configured development tooling (e.g. ruff, pre-commit) and CI
 - Comprehensive documentation and guides
-- `AGENTS.md` for AI-assisted coding
+- [AGENTS.md](https://agents.md/) to provide the context and instructions to help AI coding agents work on your project
 
 ## Getting Started
 
@@ -62,7 +62,7 @@ A modern, production-ready template for building Temporal applications using [Te
 
 ### Next Steps
 
-- Check out [example prompts](./docs/example-prompts.md) to generate Temporal Workflows using your favorite tool.
+- Check out some [example prompts](./docs/example-prompts.md) to generate Temporal Workflows using your favorite tool.
 - See `docs/temporal-patterns.md` for advanced patterns
 - Check `docs/testing.md` for testing best practices
 

@@ -2,7 +2,7 @@
 
 This document provides example prompts that can be used to guide AI agents in developing Temporal workflows.
 
-## Order Management Workflow
+## Text-based Prompt
 
 ```text
 Implement an order Workflow with the following steps:
@@ -15,6 +15,16 @@ Implement an order Workflow with the following steps:
 
 [![Order Workflow with Cursor](https://img.youtube.com/vi/ePbdiPNsgv4/maxresdefault.jpg)](https://youtu.be/ePbdiPNsgv4)
 *Video 1: generate order Workflow using Cursor*
+
+## Multi-modal Prompt
+
+```text
+# attach-your-workflow-diagram-as-context
+Analyze the provided diagram and convert it into a Temporal Workflow Definition using the Python SDK. You MUST adhere to the given implementation standards defined in AGENTS.md
+```
+
+[![Employee Anniversary Workflow with Warp Code](https://img.youtube.com/vi/pgRWSEM7bn4/maxresdefault.jpg)](https://youtu.be/pgRWSEM7bn4)
+*Video 2: generate employee anniversary Workflow using Warp Code*
 
 ## Usage Guidelines
 
