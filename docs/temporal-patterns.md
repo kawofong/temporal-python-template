@@ -213,6 +213,150 @@ class LongRunningWorkflow:
         self.state.processed_items += 10
 ```
 
+## Long-running Entity
+
+The Long-running Entity pattern enables workflows to model stateful entities that persist over long periods and respond to external events. This pattern uses signals, queries, and updates to manage entity state while leveraging Continue-as-New to prevent unbounded history growth.
+
+**Key Implementation:**
+
+- Use `@workflow.query` to expose entity state for external inspection
+- Use `@workflow.signal` to modify entity state asynchronously
+- Use `@workflow.update` to modify entity state with validation and return values
+- Implement `while True` loop with `workflow.wait_condition()` for entity lifecycle management
+- Use Continue-as-New when `workflow.info().is_continue_as_new_suggested()` returns `True`
+- Use `await workflow.wait_condition(workflow.all_handlers_finished)` to wait for all handlers to finish before Workflow termination and Continue-as-New
+- Handle entity termination through state flags and conditional logic
+- Essential for modeling business entities like user accounts, orders, digital twins, or long-running processes
+
+```python
+from datetime import datetime, timedelta
+from temporalio import workflow
+from temporalio.common import RetryPolicy
+
+@workflow.defn
+class CustomerRewardAccount:
+    """Long-running entity workflow for managing customer reward accounts."""
+
+    def __init__(self):
+        # Entity state maintained throughout workflow lifetime
+        self._level: CustomerRewardLevel = CustomerRewardLevel.BASIC
+        self._points: int = 0
+        self._is_active: bool = True
+        self._user_id: str | None = None
+        self._create_time: datetime | None = None
+        self._cancel_time: datetime | None = None
+        self._update_count: int = 0
+
+    @workflow.run
+    async def run(self, inp: CustomerRewardAccountInput) -> CustomerRewardAccountStatus:
+        """Initialize entity and enter long-running loop."""
+        workflow.logger.info("Creating reward account for %s", inp.user_id)
+        self._create_time = workflow.now()
+
+        # Initialize entity with external data
+        user: UserInfo = await workflow.execute_activity(
+            get_user,
+            inp.user_id,
+            start_to_close_timeout=timedelta(seconds=1),
+        )
+        self._user_id = user.id
+
+        workflow.logger.info(
+            "Reward account for %s created at %s",
+            self._user_id,
+            self._create_time
+        )
+
+        # Long-running entity loop
+        while True:
+            # Wait for entity termination or update count threshold
+            await workflow.wait_condition(
+                lambda: not self._is_active or workflow.info().is_continue_as_new_suggested()
+            )
+
+            # Handle entity termination
+            if not self._is_active:
+                workflow.logger.info(
+                    "Terminating reward account for %s at %s",
+                    self._user_id,
+                    self._cancel_time,
+                )
+                await workflow.wait_condition(workflow.all_handlers_finished)
+                return CustomerRewardAccountStatus(
+                    level=self._level,
+                    points=self._points,
+                    is_active=self._is_active,
+                )
+
+            # Handle Continue-as-New for history management
+            if workflow.info().is_continue_as_new_suggested():
+                await workflow.wait_condition(workflow.all_handlers_finished)
+                workflow.continue_as_new(
+                    CustomerRewardAccountInput(
+                        user_id=self._user_id,
+                        starting_points=self._points,
+                        starting_level=self._level,
+                    )
+                )
+
+    @workflow.query
+    def query_reward_status(self) -> CustomerRewardAccountStatus:
+        """Query handler to expose current entity state."""
+        return CustomerRewardAccountStatus(
+            level=self._level,
+            points=self._points,
+            is_active=self._is_active,
+        )
+
+    @workflow.update
+    async def cancel(self) -> CustomerRewardAccountStatus:
+        """Update handler to terminate the entity."""
+        self._is_active = False
+        self._cancel_time = workflow.now()
+        return CustomerRewardAccountStatus(
+            level=self._level,
+            points=self._points,
+            is_active=self._is_active,
+        )
+
+    @workflow.update
+    async def add_points(self, inp: AddPointInput) -> CustomerRewardAccountStatus:
+        """Update handler to modify entity state with business logic."""
+        workflow.logger.info("Adding points for %s by %i", self._user_id, inp.points)
+
+        self._update_count += 1
+        self._points += inp.points
+        self._points = max(self._points, 0)  # Prevent negative points
+
+        # Update derived state based on business rules
+        if 500 <= self._points < 1000:
+            self._level = CustomerRewardLevel.GOLD
+        elif self._points >= 1000:
+            self._level = CustomerRewardLevel.PLATINUM
+        else:
+            self._level = CustomerRewardLevel.BASIC
+
+        return CustomerRewardAccountStatus(
+            level=self._level,
+            points=self._points,
+            is_active=self._is_active,
+        )
+
+    @add_points.validator
+    def validate_add_point(self, inp: AddPointInput) -> None:
+        """Validate update input before processing."""
+        if not isinstance(inp.points, int):
+            raise ValueError("Points must be an integer.")
+```
+
+**Benefits:**
+
+- **Stateful Processing**: Maintains complex entity state across long periods
+- **Real-time Interaction**: Responds immediately to queries and updates
+- **History Management**: Uses Continue-as-New to prevent unbounded growth
+- **Strong Consistency**: All state changes are durably persisted
+- **Event Sourcing**: Complete audit trail of all entity state changes
+
 ## Concurrent Timers
 
 The Concurrent Timers pattern enables workflows to manage multiple independent timers that can fire at different intervals. This pattern uses `asyncio.create_task()` with `workflow.wait()` to efficiently handle multiple concurrent timers, making it ideal for scheduling recurring events with different frequencies.
