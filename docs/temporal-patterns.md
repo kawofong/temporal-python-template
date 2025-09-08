@@ -213,6 +213,94 @@ class LongRunningWorkflow:
         self.state.processed_items += 10
 ```
 
+## Concurrent Timers
+
+The Concurrent Timers pattern enables workflows to manage multiple independent timers that can fire at different intervals. This pattern uses `asyncio.create_task()` with `workflow.wait()` to efficiently handle multiple concurrent timers, making it ideal for scheduling recurring events with different frequencies.
+
+**Key Implementation:**
+
+- Use `asyncio.create_task(asyncio.sleep())` to create independent timer tasks
+- Use `workflow.wait()` with `asyncio.FIRST_COMPLETED` to wait for any timer to complete
+- Reset completed timers by creating new tasks with the same intervals
+- Handle multiple timer events in a single workflow execution loop
+- Essential for managing recurring events with different schedules
+
+```python
+import asyncio
+from datetime import timedelta
+from temporalio import activity, workflow
+
+@activity.defn
+async def send_notification(user_email: str, message: str) -> None:
+    # Replace this stub with your actual notification logic:
+    # e.g., email, Slack, push, etc.
+    activity.logger.info(f"[Notify] {user_email}: {message}")
+
+@workflow.defn
+class MaintenanceWorkflow:
+    @workflow.run
+    async def run(self, user_email: str) -> None:
+        # Create concurrent timers for different maintenance events
+        oil_change_timer = asyncio.create_task(
+            asyncio.sleep(timedelta(months=3).total_seconds())  # Every 3 months
+        )
+        inspection_timer = asyncio.create_task(
+            asyncio.sleep(timedelta(days=365).total_seconds())  # Yearly
+        )
+        coolant_timer = asyncio.create_task(
+            asyncio.sleep(timedelta(months=24).total_seconds())  # Every 2 years
+        )
+
+        while True:
+            # Wait for whichever timer fires first
+            done, _ = await workflow.wait(
+                {oil_change_timer, inspection_timer, coolant_timer},
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+            # Handle oil change timer
+            if oil_change_timer in done:
+                workflow.logger.info("Time for oil change")
+                await workflow.execute_activity(
+                    send_notification,
+                    user_email,
+                    "Your car needs an oil change",
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+                # Reset timer for next oil change
+                oil_change_timer = asyncio.create_task(
+                    asyncio.sleep(timedelta(months=3).total_seconds())
+                )
+
+            # Handle inspection timer
+            if inspection_timer in done:
+                workflow.logger.info("Time for car inspection")
+                await workflow.execute_activity(
+                    send_notification,
+                    user_email,
+                    "Your car needs an annual inspection",
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+                # Reset timer for next inspection
+                inspection_timer = asyncio.create_task(
+                    asyncio.sleep(timedelta(days=365).total_seconds())
+                )
+
+            # Handle coolant timer
+            if coolant_timer in done:
+                workflow.logger.info("Time for coolant change")
+                await workflow.execute_activity(
+                    send_notification,
+                    user_email,
+                    "Your car needs a coolant system service",
+                    start_to_close_timeout=timedelta(seconds=30),
+                )
+                # Reset timer for next coolant change
+                coolant_timer = asyncio.create_task(
+                    asyncio.sleep(timedelta(months=24).total_seconds())
+                )
+```
+
 ## Child Workflow
 
 The Child Workflow pattern enables workflows to spawn and manage other workflow executions as children, providing composition and modularity. Child workflows run independently but are tracked in the parent's Event History, enabling complex orchestration patterns.
