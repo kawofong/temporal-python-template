@@ -8,6 +8,7 @@ dependencies = [
     "temporalio==1.17.0",
     "aiohttp==3.12.15",
     "pydantic==2.11.9",
+    "ray==2.49.1",
 ]
 
 [dependency-groups]
