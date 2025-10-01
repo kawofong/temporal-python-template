@@ -1,0 +1,39 @@
+{
+  "image": "ghcr.io/mrsimonemms/devcontainers/base",
+  "name": "Temporal Python Template",
+  "features": {
+    "ghcr.io/devcontainers-extra/features/pre-commit:2": {},
+    "ghcr.io/devcontainers/features/python:1": {},
+    "ghcr.io/devcontainers-extra/features/temporal-cli:1": {},
+    "ghcr.io/va-h/devcontainers-features/uv:1": {
+      "shellautocompletion": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "ms-python.pytest"
+      ]
+    }
+  },
+  "containerEnv": {
+    "TEMPORAL_ADDRESS": "localhost:7233",
+    "PRE_COMMIT_HOME": "/home/vscode/.cache/pre-commit"
+  },
+  "forwardPorts": [
+    8080,
+    8233
+  ],
+  "initializeCommand": {
+    "init-pre-commit-cache": "mkdir -p ${localEnv:HOME}${localEnv:USERPROFILE}/.cache"
+  },
+  "postCreateCommand": {
+    "pre-commit": "pre-commit install --install-hooks -t pre-commit -t commit-msg --allow-missing-config || true"
+  },
+  "postStartCommand": {
+    "temporal-server": "nohup bash -c 'temporal server start-dev &'",
+    "python-install": "uv sync --dev"
+  }
+}
