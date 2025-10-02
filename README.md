@@ -63,8 +63,9 @@ A modern, production-ready template for building Temporal applications using [Te
 ### Next Steps
 
 - Check out some [example prompts](./docs/example-prompts.md) to generate Temporal Workflows using your favorite tool.
-- See `docs/temporal-patterns.md` for advanced patterns
-- Check `docs/testing.md` for testing best practices
+- After you have built your first Temporal Workflow, read [DEVELOPERS.md](./DEVELOPERS.md) to learn about development tips & tricks using this template.
+- See [`docs/temporal-patterns.md`](./docs/temporal-patterns.md) for advanced Temporal patterns
+- Check [`docs/testing.md`](./docs/testing.md) for Temporal testing best practices
 
 ## License
 

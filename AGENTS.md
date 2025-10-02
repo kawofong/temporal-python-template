@@ -12,6 +12,8 @@ This is a **Temporal Python SDK project template** (`temporal-python-template`) 
 - **Pydantic**: Data validation and serialization
 - **pytest**: Testing framework with async support
 
+For more information on how to use these tools, see [DEVELOPERS.md](./DEVELOPERS.md).
+
 ## Project Structure
 
 ```text
