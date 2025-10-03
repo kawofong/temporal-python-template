@@ -35,10 +35,14 @@ jobs:
       run: |
         uv run poe test
 
+    # TODO: to enable Codecov, you need to add a CODECOV_TOKEN secret in GitHub
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
+      env:
+        codecov_token: ${{ secrets.CODECOV_TOKEN }}
+      if: ${{ env.codecov_token != '' }}
       with:
-        token: ${{ secrets.CODECOV_TOKEN }}
+        token: ${{ env.codecov_token }}
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
