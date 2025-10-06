@@ -126,3 +126,51 @@ git commit --no-verify -m "emergency fix"
 # Disable pre-commit for this project
 uv run pre-commit uninstall
 ```
+
+## Task Management
+
+We use **[poethepoet](https://poethepoet.natn.io/)** (poe) as a task runner because it provides a simple, declarative way to define and execute project tasks directly in `pyproject.toml`. Unlike Makefiles or shell scripts, poe tasks are cross-platform, integrate seamlessly with Python tooling, and automatically handle virtual environment activation.
+
+### Common `poe` Commands
+
+```bash
+# Run tests with proper PYTHONPATH configuration
+uv run poe test
+
+# Lint code and automatically fix issues
+uv run poe lint
+
+# Format code with ruff
+uv run poe format
+
+# Install pre-commit hooks
+uv run poe pre-commit-install
+
+# Run pre-commit on all files
+uv run poe pre-commit-run
+
+# Update pre-commit hook versions
+uv run poe pre-commit-update
+
+# List all available tasks
+uv run poe --help
+```
+
+**Important**: Always use `uv run poe test` instead of `uv run pytest` directly, as the poe task properly configures `PYTHONPATH=.` to ensure imports work correctly.
+
+## Continuous Integration
+
+We use **[GitHub Actions](https://docs.github.com/en/actions)** for continuous integration because it provides native integration with GitHub repositories, supports matrix builds across multiple Python versions and operating systems, and offers excellent caching capabilities for faster builds. GitHub Actions is free for public repositories and provides generous limits for private repositories.
+
+In this project, GitHub Action is used for continuous integration (i.e. ensure code quality and test coverage).
+To disable the CI pipeline, you can delete the [GitHub Action definition file](.github/workflows/ci.yml)
+or append `.disabled` to the filename.
+
+## Dependency Automation
+
+We use **[Dependabot](https://docs.github.com/en/code-security/dependabot)** for automated dependency management because it provides proactive security updates, keeps dependencies current with minimal manual effort, and integrates seamlessly with GitHub's security advisory database.
+
+Dependabot automatically creates pull requests for dependency updates, making it easy to review and merge changes while maintaining project security.
+
+The Dependabot configuration for this project is stored at [`.github/dependabot.yml`](.github/dependabot.yml).
+For full documentation on Dependabot configuration, see [Dependabot options reference](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference).
