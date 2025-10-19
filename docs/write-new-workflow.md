@@ -1,5 +1,10 @@
 # Write a New Workflow
 
+## Table of Contents
+
+- [File naming convention](#file-naming-convention)
+- [Best practices when writing a new Workflow](#best-practices-when-writing-a-new-workflow)
+
 1. Create a new subdirectory under `src/workflows/`
 1. Create a workflow file with `@workflow.defn` class
 1. Define input/output Pydantic models
