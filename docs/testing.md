@@ -1,35 +1,74 @@
 # Testing Standards
 
-This document outlines comprehensive testing standards for this project.
+This document outlines comprehensive testing standards for this project, emphasizing behavioral driven testing (BDD) best practices.
 
 ## Testing Philosophy
 
 ### Core Principles
 
-1. **Comprehensive Coverage**: Test both happy paths and error scenarios
-2. **Isolation**: Each test should be independent and not rely on external services
-3. **Determinism**: Tests must be predictable and repeatable
-4. **Speed**: Tests should run quickly to enable rapid feedback
-5. **Clarity**: Tests should serve as living documentation of expected behavior
+1. **Behavior-Driven**: Tests describe business behavior and user scenarios, not just implementation details
+2. **Comprehensive Coverage**: Test both happy paths and error scenarios using realistic business scenarios
+3. **Isolation**: Each test should be independent and not rely on external services
+4. **Determinism**: Tests must be predictable and repeatable
+5. **Speed**: Tests should run quickly to enable rapid feedback
+6. **Clarity**: Tests should serve as living documentation of expected behavior using natural language
+7. **User-Centric**: Focus on what the system should do from a user's perspective
+8. **Scenario-Based**: Structure tests around business scenarios using Given-When-Then patterns
 
 ## Test Types and Structure
 
-### 1. Unit Tests (Activities)
+### 1. Behavior Tests (Activities)
 
-- Test individual activities in isolation
-- Mock external dependencies
-- Focus on business logic and error handling
+- Test individual activities as business behaviors
+- Mock external dependencies to focus on business logic
+- Structure tests using Given-When-Then scenarios
 - Use `ActivityEnvironment` for execution
+- Name tests to describe business outcomes
 
-### 2. Unit Tests (Workflows)
+### 2. Behavior Tests (Workflows)
 
-- Test workflow orchestration logic
+- Test workflow orchestration as business processes
 - Mock activities if activities have external dependencies
 - Use `WorkflowEnvironment` with time skipping
+- Focus on business scenarios and user journeys
+- Test complete business workflows end-to-end
+
+## BDD Testing Structure
+
+### Given-When-Then Pattern
+
+All tests should follow the Given-When-Then (GWT) pattern to clearly describe business scenarios:
+
+- **Given**: The initial context or preconditions
+- **When**: The action or event that triggers the behavior
+- **Then**: The expected outcome or result
+
+### Test Scenario Structure
+
+```python
+@pytest.mark.asyncio
+async def test_should_process_payment_when_valid_card_provided(self) -> None:
+    """
+    Scenario: Processing payment with valid card
+    Given a customer has a valid credit card
+    When they submit a payment request
+    Then the payment should be processed successfully
+    """
+    # Given - Setup initial conditions
+    valid_card = PaymentCard(number="4111111111111111", cvv="123")
+    payment_request = PaymentRequest(amount=100.00, card=valid_card)
+
+    # When - Execute the behavior
+    result = await activity_environment.run(process_payment, payment_request)
+
+    # Then - Verify the outcome
+    assert result.status == PaymentStatus.SUCCESS
+    assert result.transaction_id is not None
+```
 
 ## Testing Framework Configuration
 
-This project uses `pytest` to write all tests.
+This project uses `pytest` to write all tests with BDD-style naming and structure.
 Other testing dependencies are available in `pyproject.toml`.
 
 ### Pytest Configuration
@@ -45,7 +84,7 @@ python_files = ["*_tests.py"]
 
 ### Test File Structure
 
-```
+```text
 src/
 ├── conftest.py                            # Global test configuration
 └── workflows/
@@ -57,12 +96,12 @@ src/
         └── worker.py                      # Worker configuration
 ```
 
-## Activity Testing Standards
+## Activity Behavior Testing Standards
 
-### Basic Activity Test Structure
+### BDD Activity Test Structure
 
 ```python
-"""Tests for [activity_name] activities."""
+"""Behavior tests for [activity_name] activities."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
@@ -72,93 +111,118 @@ from src.workflows.example.example_activities import MyActivity, MyActivityInput
 
 
 class TestMyActivity:
-    """Test suite for MyActivity.
+    """Behavior tests for MyActivity.
 
-    Tests cover successful operations, various error scenarios,
-    and edge cases using ActivityEnvironment for isolation.
+    Tests describe business scenarios and expected outcomes
+    using Given-When-Then structure for clarity.
     """
 
     @pytest.mark.asyncio
-    async def test_activity_success(self) -> None:
-        """Test successful activity execution."""
-        # Arrange
+    async def test_my_activity_should_return_processed_data_when_valid_input_provided(self) -> None:
+        """
+        Scenario: Processing valid business data
+        Given a valid business input is provided
+        When the activity processes the data
+        Then it should return the expected processed result
+        """
+        # Given - Valid business input
         activity_environment = ActivityEnvironment()
-        input_data = MyActivityInput(param="test_value")
+        business_input = MyActivityInput(param="valid_business_data")
 
-        # Mock external dependencies
+        # Mock external service to return expected business result
         with patch("external_service.call") as mock_service:
-            mock_service.return_value = "expected_result"
+            mock_service.return_value = "processed_business_result"
 
-            # Act
-            result = await activity_environment.run(my_activity, input_data)
+            # When - Activity processes the input
+            result = await activity_environment.run(my_activity, business_input)
 
-            # Assert
-            assert result.output == "expected_result"
-            mock_service.assert_called_once_with("test_value")
+            # Then - Should return processed business data
+            assert result.output == "processed_business_result"
+            mock_service.assert_called_once_with("valid_business_data")
 
     @pytest.mark.parametrize(
-        "invalid_input,expected_exception",
+        "scenario,invalid_input,expected_exception,business_context",
         [
-            ("", ValueError),
-            (None, TypeError),
-            ("invalid", CustomException),
+            ("empty_input", "", ValueError, "User provides empty input field"),
+            ("null_input", None, TypeError, "System receives null data"),
+            ("malformed_input", "invalid", CustomException, "User provides malformed data"),
         ],
     )
     @pytest.mark.asyncio
-    async def test_activity_invalid_input(
-        self, invalid_input, expected_exception
+    async def test_my_activity_should_reject_invalid_input_when_business_rules_violated(
+        self, scenario: str, invalid_input, expected_exception, business_context: str
     ) -> None:
-        """Test activity with various invalid inputs."""
+        """
+        Scenario: Handling invalid business input
+        Given invalid business data is provided
+        When the activity attempts to process it
+        Then it should reject the input with appropriate error
+        """
+        # Given - Invalid business input based on scenario
         activity_environment = ActivityEnvironment()
-        input_data = MyActivityInput(param=invalid_input)
 
+        # When/Then - Should reject invalid input
         with pytest.raises(expected_exception):
-            await activity_environment.run(my_activity, input_data)
+            invalid_business_input = MyActivityInput(param=invalid_input)
+            await activity_environment.run(my_activity, invalid_business_input)
 ```
 
-### Activity Testing Requirements
+### Activity Behavior Testing Requirements
 
 1. **Use ActivityEnvironment**: Always test activities using `ActivityEnvironment` for proper isolation
 1. **Mock External Dependencies**: Mock all HTTP calls, database connections, file operations, etc.
-1. **Test Input Validation**: Verify Pydantic model validation works correctly
-1. **Test Error Scenarios**: Always test code paths leading to Exceptions
-1. **Parameterized Tests**: Use `@pytest.mark.parametrize` for testing multiple input scenarios
+1. **Business-Focused Naming**: Name tests to describe business outcomes, not implementation details
+1. **Given-When-Then Structure**: Structure all tests with clear Given-When-Then comments
+1. **Scenario Documentation**: Include business scenario descriptions in test docstrings
+1. **Test Business Rules**: Verify business logic and validation rules work correctly
+1. **Test Error Scenarios**: Always test business rule violations and edge cases
+1. **Parameterized Scenarios**: Use `@pytest.mark.parametrize` with scenario names and business context
 1. **Async Support**: Mark async tests with `@pytest.mark.asyncio`
 
 ### Activity Mocking Patterns
 
-#### HTTP Client Mocking
+#### HTTP Client Mocking with BDD Structure
 
 ```python
 @pytest.mark.asyncio
-async def test_http_activity_success(self) -> None:
-    """Test successful HTTP request."""
-    # Create mock response
+async def test_user_data_fetcher_should_fetch_user_data_when_api_responds_successfully(self) -> None:
+    """
+    Scenario: Fetching user data from external API
+    Given the external API is available and responds with user data
+    When the activity makes a request for user information
+    Then it should return the user data successfully
+    """
+    # Given - External API responds with user data
     mock_response = AsyncMock()
-    mock_response.text = AsyncMock(return_value='{"result": "success"}')
+    mock_response.text = AsyncMock(return_value='{"user_id": 123, "name": "John Doe"}')
     mock_response.status = 200
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=None)
 
-    # Create mock session
     mock_session = AsyncMock()
     mock_session.get = MagicMock(return_value=mock_response)
     mock_session.__aenter__ = AsyncMock(return_value=mock_session)
     mock_session.__aexit__ = AsyncMock(return_value=None)
 
+    user_request = UserDataRequest(user_id=123)
+
     with patch("aiohttp.ClientSession", return_value=mock_session):
         activity_environment = ActivityEnvironment()
-        result = await activity_environment.run(http_activity, input_data)
 
+        # When - Activity fetches user data
+        result = await activity_environment.run(fetch_user_data, user_request)
+
+        # Then - Should return user data successfully
         assert result.status_code == 200
+        assert result.user_name == "John Doe"
 ```
 
-## Workflow Testing Standards
+## Workflow Behavior Testing Standards
 
-### Basic Workflow Test Structure
+### BDD Workflow Test Structure
 
 ```python
-"""Tests for [workflow_name] workflow."""
+"""Behavior tests for [workflow_name] workflow."""
 
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -176,10 +240,10 @@ from src.workflows.example.workflow import (
 
 
 class TestMyWorkflow:
-    """Test suite for MyWorkflow.
+    """Behavior tests for MyWorkflow.
 
-    Tests cover end-to-end workflow execution, mocked activities,
-    timeout scenarios, and error handling.
+    Tests describe complete business processes and user journeys
+    using Given-When-Then structure for end-to-end scenarios.
     """
 
     @pytest.fixture
@@ -188,16 +252,22 @@ class TestMyWorkflow:
         return f"test-my-workflow-{uuid.uuid4()}"
 
     @pytest.mark.asyncio
-    async def test_workflow_success(
+    async def test_my_workflow_should_complete_business_process_when_all_steps_succeed(
         self, client: Client, task_queue: str
     ) -> None:
-        """Test successful workflow execution with mocked activities."""
+        """
+        Scenario: Completing a successful business process
+        Given all required business data is available
+        When the workflow executes the complete business process
+        Then it should complete successfully with expected results
+        """
 
         @activity.defn(name="my_activity")
         async def my_activity_mocked(input_data) -> MyActivityOutput:
-            """Mocked activity for testing."""
-            return MyActivityOutput(result="mocked_result")
+            """Mocked activity representing successful business operation."""
+            return MyActivityOutput(result="business_process_completed")
 
+        # Given - All business prerequisites are met
         async with Worker(
             client,
             task_queue=task_queue,
@@ -205,105 +275,172 @@ class TestMyWorkflow:
             activities=[my_activity_mocked],
             activity_executor=ThreadPoolExecutor(5),
         ):
-            input_data = MyWorkflowInput(param="test")
+            business_input = MyWorkflowInput(param="valid_business_data")
 
+            # When - Business process is executed
             result = await client.execute_workflow(
                 MyWorkflow.run,
-                input_data,
-                id=f"test-workflow-{uuid.uuid4()}",
+                business_input,
+                id=f"test-business-process-{uuid.uuid4()}",
                 task_queue=task_queue,
             )
 
+            # Then - Business process should complete successfully
             assert isinstance(result, MyWorkflowOutput)
-            assert result.output == "mocked_result"
+            assert result.output == "business_process_completed"
 ```
 
-### Workflow Testing Requirements
+### Workflow Behavior Testing Requirements
 
 1. **Use WorkflowEnvironment**: Leverage the test environment from `conftest.py`
-1. **Mock Activities if necessary**: Create test implementations of activities for workflow tests if activities have external dependencies (e.g. network calls, database query)
+1. **Mock Activities for Business Logic**: Create test implementations of activities that focus on business outcomes
+1. **Business Process Focus**: Test complete business workflows, not just technical orchestration
 1. **Unique Task Queues**: Use UUID-based task queue names to avoid conflicts
 1. **Time Skipping**: Use time-skipping test environment for faster execution
-1. **Error Propagation**: Test how workflows handle activity failures
-1. **Avoid testing Timeout and Retry**: Temporal handles timeouts and retry. You shall avoid writing tests to test timeout. and retries.
+1. **Business Error Scenarios**: Test how workflows handle business rule violations and process failures
+1. **User Journey Testing**: Test workflows from the user's perspective and business value
+1. **Scenario-Based Naming**: Name tests to describe business scenarios, not technical implementation
+1. **Avoid testing Timeout and Retry**: Temporal handles timeouts and retry. Focus on business logic instead
 
 ### Advanced Workflow Testing Patterns
 
-#### Testing Workflow with Multiple Activities
+#### Testing Complex Business Workflows with Multiple Steps
 
 ```python
 @pytest.mark.asyncio
-async def test_workflow_multiple_activities(
+async def test_order_fulfillment_workflow_should_complete_order_fulfillment_when_all_business_steps_succeed(
     self, client: Client, task_queue: str
 ) -> None:
-    """Test workflow that executes multiple activities."""
+    """
+    Scenario: Complete order fulfillment process
+    Given a customer has placed a valid order
+    When the fulfillment workflow processes all business steps
+    Then the order should be completed successfully
+    """
+    business_steps_executed = []
 
-    @activity.defn(name="database_query")
-    async def database_query_mocked(input_data) -> DatabaseQueryOutput:
-        activity_calls.append("database_query")
-        return DatabaseQueryOutput(result="database_query")
+    @activity.defn(name="validate_inventory")
+    async def validate_inventory_mocked(input_data) -> InventoryValidationOutput:
+        """Mock inventory validation step."""
+        business_steps_executed.append("inventory_validated")
+        return InventoryValidationOutput(available=True, reserved_quantity=5)
 
+    @activity.defn(name="process_payment")
+    async def process_payment_mocked(input_data) -> PaymentProcessingOutput:
+        """Mock payment processing step."""
+        business_steps_executed.append("payment_processed")
+        return PaymentProcessingOutput(transaction_id="txn_123", status="completed")
+
+    # Given - Customer has placed a valid order
     async with Worker(
         client,
         task_queue=task_queue,
-        workflows=[MyWorkflow],
-        activities=[first_activity, database_query_mocked],
+        workflows=[OrderFulfillmentWorkflow],
+        activities=[validate_inventory_mocked, process_payment_mocked],
     ):
+        order_input = OrderFulfillmentInput(
+            order_id="order_123",
+            customer_id="customer_456",
+            items=[{"product_id": "prod_789", "quantity": 5}]
+        )
+
+        # When - Order fulfillment workflow processes all steps
         result = await client.execute_workflow(
-            MyWorkflow.run,
-            input_data,
-            id=f"test-workflow-{uuid.uuid4()}",
+            OrderFulfillmentWorkflow.run,
+            order_input,
+            id=f"test-order-fulfillment-{uuid.uuid4()}",
             task_queue=task_queue,
         )
 
-        # Verify activity execution order
-        assert result.combined_result == "first_result,database_query"
+        # Then - Order should be completed with all business steps executed
+        assert result.order_status == "fulfilled"
+        assert "inventory_validated" in business_steps_executed
+        assert "payment_processed" in business_steps_executed
+        assert result.fulfillment_details.transaction_id == "txn_123"
 ```
 
-## Test Organization and Naming
+## BDD Test Organization and Naming
 
 ### File Naming Convention
 
 - Test files: `*_tests.py`
 - Test classes: `Test[ComponentName]`
-- Test methods: `test_[component]_[scenario]`
+- Test methods: `test_[component]_should_[expected_outcome]_when_[condition]`
 
-### Test Method Naming Patterns
+### BDD Test Method Naming Patterns
+
+Use behavior-focused naming that describes business outcomes, starting with the component being tested:
 
 ```python
-def test_[component]_[scenario]_[expected_outcome](self) -> None:
-    """Test [component] [scenario] [expected_outcome]."""
+def test_[component]_should_[expected_outcome]_when_[condition](self) -> None:
+    """
+    Scenario: [Business scenario description]
+    Given [preconditions]
+    When [action/trigger]
+    Then [expected outcome]
+    """
 ```
 
-Examples:
+### BDD Naming Examples
 
-- `test_http_activity_success()`
-- `test_workflow_timeout_raises_exception()`
-- `test_activity_invalid_url_raises_client_error()`
+**Good BDD Names (Business-Focused):**
 
-### Test Class Organization
+- `test_payment_processor_should_process_payment_when_valid_card_provided()`
+- `test_order_validator_should_reject_order_when_insufficient_inventory()`
+- `test_notification_service_should_send_notification_when_workflow_completes()`
+- `test_retry_handler_should_retry_failed_step_when_temporary_error_occurs()`
+
+**Avoid Technical Names:**
+
+- ❌ `test_http_activity_success()`
+- ❌ `test_workflow_timeout_raises_exception()`
+- ❌ `test_activity_invalid_url_raises_client_error()`
+
+**Better Business-Focused Alternatives:**
+
+- ✅ `test_user_data_fetcher_should_fetch_user_data_when_api_responds_successfully()`
+- ✅ `test_business_process_should_handle_failure_when_external_service_unavailable()`
+- ✅ `test_input_validator_should_validate_input_when_user_provides_invalid_data()`
+
+### BDD Test Class Organization
 
 ```python
 class TestMyComponent:
-    """Test suite for MyComponent.
+    """Behavior tests for MyComponent.
 
-    Brief description of what this component does and
-    what aspects are covered by these tests.
+    Tests describe business scenarios and expected outcomes
+    from the user's perspective. Each test represents a
+    specific business use case or user journey.
     """
 
-    # Happy path tests first
-    def test_component_success(self) -> None:
-        """Test successful operation."""
+    # Happy path business scenarios first
+    def test_my_component_should_complete_business_operation_when_valid_conditions_met(self) -> None:
+        """
+        Scenario: Successful business operation
+        Given valid business conditions are met
+        When the user initiates the operation
+        Then the business operation should complete successfully
+        """
         pass
 
-    # Error scenarios
-    def test_component_invalid_input(self) -> None:
-        """Test handling of invalid input."""
+    # Business rule violations
+    def test_my_component_should_reject_operation_when_business_rules_violated(self) -> None:
+        """
+        Scenario: Business rule validation
+        Given business rules are configured
+        When invalid business data is provided
+        Then the operation should be rejected with clear feedback
+        """
         pass
 
-    # Edge cases
-    def test_component_edge_case(self) -> None:
-        """Test edge case behavior."""
+    # Edge cases and boundary conditions
+    def test_my_component_should_handle_boundary_conditions_when_edge_cases_occur(self) -> None:
+        """
+        Scenario: Handling edge cases
+        Given boundary conditions exist
+        When edge case scenarios occur
+        Then the system should handle them gracefully
+        """
         pass
 ```
 
@@ -388,86 +525,115 @@ if __name__ == "__main__":  # pragma: no cover
 
 ## Error Handling and Edge Cases
 
-### Input Validation Testing
+### Business Rule Validation Testing
 
 ```python
 @pytest.mark.parametrize(
-    "invalid_input,expected_error",
+    "business_scenario,invalid_input,expected_error,business_context",
     [
-        ("", "URL cannot be empty"),
-        ("not-a-url", "Invalid URL format"),
-        ("https://", "Incomplete URL"),
+        ("empty_url_submission", "", "URL cannot be empty", "User submits form without URL"),
+        ("malformed_url_entry", "not-a-url", "Invalid URL format", "User enters invalid URL format"),
+        ("incomplete_url_input", "https://", "Incomplete URL", "User provides incomplete URL"),
     ],
 )
 @pytest.mark.asyncio
-async def test_activity_input_validation(
-    self, invalid_input: str, expected_error: str
+async def test_input_validator_should_reject_invalid_business_data_when_validation_rules_violated(
+    self, business_scenario: str, invalid_input: str, expected_error: str, business_context: str
 ) -> None:
-    """Test activity input validation."""
+    """
+    Scenario: Business data validation
+    Given business validation rules are in place
+    When invalid business data is provided
+    Then the system should reject it with appropriate business error
+    """
+    # Given - Business validation rules are configured
+    # When - Invalid business data is provided
+    # Then - Should reject with business-appropriate error
     with pytest.raises(ValueError, match=expected_error):
         MyActivityInput(url=invalid_input)
 ```
 
-### Network Error Simulation
+### Business Process Error Simulation
 
 ```python
 @pytest.mark.asyncio
-async def test_activity_network_error(self) -> None:
-    """Test activity handling of network errors."""
+async def test_external_service_handler_should_handle_service_unavailable_when_external_dependency_fails(self) -> None:
+    """
+    Scenario: External service unavailability
+    Given the business process depends on an external service
+    When the external service becomes unavailable
+    Then the system should handle the failure gracefully
+    """
+    # Given - Business process requires external service
     activity_environment = ActivityEnvironment()
+    business_request = BusinessDataRequest(customer_id="cust_123")
 
+    # When - External service is unavailable
     with patch("aiohttp.ClientSession") as mock_session:
         mock_session.return_value.__aenter__.return_value.get.side_effect = (
-            aiohttp.ClientConnectorError("Connection failed")
+            aiohttp.ClientConnectorError("External service unavailable")
         )
 
+        # Then - Should handle the business process failure appropriately
         with pytest.raises(aiohttp.ClientConnectorError):
-            await activity_environment.run(http_activity, input_data)
+            await activity_environment.run(fetch_customer_data, business_request)
 ```
 
-### Resource Exhaustion Testing
+### Business Load Testing
 
 ```python
 @pytest.mark.asyncio
-async def test_activity_memory_limit(self) -> None:
-    """Test activity behavior under memory constraints."""
-    # Test with large input data
-    large_input = MyActivityInput(
-        data="x" * (10 * 1024 * 1024)  # 10MB string
+async def test_data_processor_should_process_large_business_data_when_high_volume_submitted(self) -> None:
+    """
+    Scenario: High-volume business data processing
+    Given the system needs to handle large business datasets
+    When a high-volume business request is submitted
+    Then it should process the data efficiently without failure
+    """
+    # Given - Large business dataset needs processing
+    large_business_data = BusinessDataInput(
+        customer_records="x" * (10 * 1024 * 1024),  # 10MB of customer data
+        processing_type="bulk_analysis"
     )
 
     activity_environment = ActivityEnvironment()
 
-    # Should handle large inputs gracefully
-    result = await activity_environment.run(my_activity, large_input)
+    # When - High-volume business data is processed
+    result = await activity_environment.run(process_business_data, large_business_data)
+
+    # Then - Should handle large business data gracefully
     assert result is not None
+    assert result.processing_status == "completed"
+    assert result.records_processed > 0
 ```
 
-## Best Practices
+## BDD Best Practices
 
-### Test Documentation
+### Business-Focused Test Documentation
 
-1. **Docstrings**: Every test method should have a clear docstring
-2. **Comments**: Explain complex test logic and mock setups
-3. **Test Names**: Use descriptive names that explain the scenario
+1. **Scenario Docstrings**: Every test method should describe the business scenario using Given-When-Then
+2. **Business Context**: Explain the business value and user perspective
+3. **Descriptive Names**: Use names that business stakeholders can understand
+4. **Living Documentation**: Tests should serve as executable business requirements
 
-### Test Structure
+### BDD Test Structure
 
-1. **Arrange-Act-Assert**: Follow the AAA pattern consistently
-2. **Single Responsibility**: Each test should verify one specific behavior
-3. **Independent Tests**: Tests should not depend on each other
+1. **Given-When-Then**: Follow the GWT pattern consistently with clear comments
+2. **Single Business Scenario**: Each test should verify one specific business behavior
+3. **Independent Scenarios**: Tests should represent independent business cases
+4. **Business Language**: Use domain terminology that business users understand
 
-### Mock Management
+### Business-Focused Mock Management
 
-1. **Minimal Mocking**: Mock only what's necessary for isolation
-2. **Realistic Mocks**: Mocks should behave like real dependencies
-3. **Mock Verification**: Assert that mocks are called as expected
+1. **Business-Realistic Mocking**: Mock external services to return realistic business data
+2. **Scenario-Based Mocks**: Create mocks that support specific business scenarios
+3. **Business Outcome Verification**: Assert that business outcomes are achieved, not just technical calls
 
-### Test Data
+### Business Test Data
 
-1. **Meaningful Data**: Use realistic test data that represents actual usage
-2. **Edge Cases**: Include boundary conditions and edge cases
-3. **Data Factories**: Use fixtures or factories for complex test data
+1. **Realistic Business Data**: Use test data that represents actual business scenarios
+2. **Business Edge Cases**: Include business boundary conditions and edge cases
+3. **Domain Fixtures**: Create fixtures that represent real business entities and relationships
 
 ### Performance Considerations
 
@@ -475,11 +641,11 @@ async def test_activity_memory_limit(self) -> None:
 2. **Parallel Execution**: Structure tests to support parallel execution
 3. **Resource Cleanup**: Ensure tests clean up resources properly
 
-### Debugging Support
+### Business-Focused Debugging Support
 
-1. **Descriptive Assertions**: Use clear assertion messages
-2. **Test Isolation**: Make it easy to run individual tests
-3. **Debug Information**: Include helpful debug information in test output
+1. **Business-Meaningful Assertions**: Use assertion messages that describe business expectations
+2. **Scenario Isolation**: Make it easy to run individual business scenarios
+3. **Business Context in Output**: Include business context and scenario information in test output
 
 ## Running Tests
 
@@ -554,4 +720,14 @@ uv run poe test
 
 ---
 
-These testing standards ensure that Temporal workflows and activities are thoroughly tested, maintainable, and reliable. Follow these guidelines consistently to build robust distributed applications with confidence.
+## Summary
+
+These BDD testing standards ensure that Temporal workflows and activities are tested from a business perspective, creating living documentation that describes system behavior in terms that business stakeholders can understand. By following these behavioral driven testing practices, you will:
+
+1. **Create Executable Business Requirements**: Tests serve as living documentation of business rules and processes
+2. **Improve Communication**: Business stakeholders can understand and validate test scenarios
+3. **Focus on User Value**: Tests describe what the system should do from a user's perspective
+4. **Build Maintainable Tests**: Business-focused tests are more stable and meaningful over time
+5. **Enable Confident Refactoring**: Well-described business behaviors provide safety nets for code changes
+
+Follow these BDD guidelines consistently to build robust, business-aligned distributed applications with confidence and clarity.
