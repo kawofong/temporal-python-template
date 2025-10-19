@@ -2,6 +2,23 @@
 
 This template comes with opinionated tooling for Temporal development using its Python SDK.
 
+## Table of Contents
+
+- [Package Management](#package-management)
+  - [Common `uv` Commands](#common-uv-commands)
+- [Testing](#testing)
+  - [Key Features](#key-features)
+  - [Common `pytest` Commands](#common-pytest-commands)
+- [Data Serialization](#data-serialization)
+  - [Temporal Integration](#temporal-integration)
+- [Code Quality](#code-quality)
+  - [Common `ruff` Commands](#common-ruff-commands)
+  - [Common `pre-commit` Commands](#common-pre-commit-commands)
+- [Task Management](#task-management)
+  - [Common `poe` Commands](#common-poe-commands)
+- [Continuous Integration](#continuous-integration)
+- [Dependency Automation](#dependency-automation)
+
 ## Package Management
 
 We use **[uv](https://docs.astral.sh/uv/)** for package management instead of `pip` or `poetry` because it's significantly faster (10-100x speedup), written in Rust, downloads packages in parallel, and provides a drop-in replacement for common `pip` workflows.

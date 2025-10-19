@@ -2,6 +2,12 @@
 
 This document provides example prompts that can be used to guide AI agents in developing Temporal workflows.
 
+## Table of Contents
+
+- [Text-based Prompt](#text-based-prompt)
+- [Multi-modal Prompt](#multi-modal-prompt)
+- [Usage Guidelines](#usage-guidelines)
+
 ## Text-based Prompt
 
 ```text

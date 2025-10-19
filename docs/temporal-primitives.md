@@ -1,5 +1,17 @@
 # Temporal Primitives
 
+## Table of Contents
+
+- [Workflow](#workflow)
+- [Activity](#activity)
+- [Timer (fixed time)](#timer-fixed-time)
+- [Timer (event-driven)](#timer-event-driven)
+- [Query](#query)
+- [Signal](#signal)
+- [Update](#update)
+- [Retry Policy](#retry-policy)
+- [Search Attributes](#search-attributes)
+
 ## Workflow
 
 Workflows orchestrate business logic and coordinate activities. They must be deterministic and replay-safe.
