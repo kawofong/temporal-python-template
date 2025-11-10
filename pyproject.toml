@@ -5,7 +5,7 @@ description = "AI-enabled Temporal Python SDK project template"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "temporalio==1.18.1",
+    "temporalio==1.18.2",
     "aiohttp==3.13.0",
     "pydantic==2.12.0",
 ]
