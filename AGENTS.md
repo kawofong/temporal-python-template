@@ -1,5 +1,29 @@
 # Temporal Python SDK Project Template
 
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Key Concepts for AI Assistants](#key-concepts-for-ai-assistants)
+  - [Temporal Architecture Patterns](#temporal-architecture-patterns)
+  - [Data Models](#data-models)
+  - [Testing](#testing)
+  - [Documentation](#documentation)
+- [Development Guidelines](#development-guidelines)
+  - [Code Quality Standards](#code-quality-standards)
+  - [Project Commands](#project-commands)
+- [AI Assistant Instructions](#ai-assistant-instructions)
+  - [When Working with This Project](#when-working-with-this-project)
+  - [Common Tasks](#common-tasks)
+  - [Security Considerations](#security-considerations)
+- [Example Usage Patterns](#example-usage-patterns)
+  - [Creating a New Activity](#creating-a-new-activity)
+  - [Creating a New Workflow](#creating-a-new-workflow)
+- [Troubleshooting](#troubleshooting)
+  - [Common Issues](#common-issues)
+  - [Getting Help](#getting-help)
+
 ## Project Overview
 
 This is a **Temporal Python SDK project template** (`temporal-python-template`) designed for building reliable, distributed applications. The project demonstrates an AI-enabled approach to workflow development with comprehensive testing and modern Python tooling.

@@ -1,5 +1,24 @@
 # Temporal Patterns
 
+## Table of Contents
+
+- [Activity Choice](#activity-choice)
+- [Parallel Activity](#parallel-activity)
+- [Cancellation](#cancellation)
+- [Continue-as-New](#continue-as-new)
+- [Long-running Entity](#long-running-entity)
+- [Concurrent Timers](#concurrent-timers)
+- [Child Workflow](#child-workflow)
+- [Exceptions](#exceptions)
+- [Local Activity](#local-activity)
+- [Authenticate using mTLS](#authenticate-using-mtls)
+- [Custom Metrics](#custom-metrics)
+- [Encryption](#encryption)
+- [Polling (frequent)](#polling-frequent)
+- [Polling (infrequent)](#polling-infrequent)
+- [Schedule](#schedule)
+- [Pydantic Converter](#pydantic-converter)
+
 ## Activity Choice
 
 The Activity Choice pattern enables workflows to dynamically select and execute different activities based on input conditions. This pattern is useful for conditional processing where different business logic needs to be applied based on data values.
