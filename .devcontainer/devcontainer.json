@@ -30,6 +30,7 @@
     "init-pre-commit-cache": "mkdir -p ${localEnv:HOME}${localEnv:USERPROFILE}/.cache"
   },
   "postCreateCommand": {
+    "git-safe-directory": "git config --global --add safe.directory ${containerWorkspaceFolder}",
     "pre-commit": "pre-commit install --install-hooks -t pre-commit -t commit-msg --allow-missing-config || true"
   },
   "postStartCommand": {
