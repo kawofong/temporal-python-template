@@ -1,4 +1,17 @@
-"""Workflow for generating load by executing activities."""
+"""Workflow for generating load by executing activities.
+
+To run this workflow, use the following command:
+
+1. Run the worker:
+    ```
+    uv run -m src.workflows.load_generator.worker
+    ```
+
+2. Run the workflow:
+    ```
+    uv run -m src.workflows.load_generator.load_generator_workflow
+    ```
+"""
 
 import asyncio
 from datetime import timedelta
